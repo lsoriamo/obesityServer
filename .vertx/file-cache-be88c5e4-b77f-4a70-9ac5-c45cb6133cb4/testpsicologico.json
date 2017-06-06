@@ -1,0 +1,807 @@
+{
+  "tests": [
+    {
+      "test": "Evaluación psicológica para cirujía bariátrica",
+      "id": 0,
+      "description":"Test psicológico para la determinación de factores de riesgo asociados a la cirugía bariátrica",
+      "questions": [
+
+        {
+          "question": "Peso (Kg)",
+          "answerType": "Libre"
+        },
+        {
+          "question": "Altura (cm)",
+          "answerType": "Libre"
+        },
+        {
+          "question": "¿Cuánto mide la circunferencia de tu cintura?",
+          "answerType": "Libre"
+        },
+        {
+          "question": "¿Usas corticoides?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Padeces el Síndrome de Cushing?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Padeces trastornos de alimentación? Ejemplo: trastorno por atracón, bulimia nerviosa, trastorno alimentario nocturno, etc.",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Padeces síndromes genéticos? Ejemplo: Osteodistrofia hereditaria de Albright, Síndrome de Alström, Síndrome de Angelman, Síndrome de Bardet-Biedl, Síndrome de Börjeson-Forssman-Lehmann, Síndrome de Cohen, Síndrome de Fröhlich, Síndrome de Prader-Willi, Síndrome de Turner",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Padeces algún tipo de deficiencia de la hormona del crecimiento?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Padeces Hipogonadismo?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Padeces obesidad hipotalámica?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Padeces hipotiroidismo?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Padeces insulinoma?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Padeces algún Síndrome de hipodistrofia? Ya sea lipodistrofia parcial familiar o lipodistrofia parcial adquirida",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Tomas medicamentos como antagonistas, adrenérgicos, carbamazepina, glucocorticoides, insulina, litio, acetato de magestrol, Fenotiazinas, valproato sódico, Sulfonilureas, antagonistas de la serotonina, tiazolidinedionas o antidepresivos tricíclicos?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Usas anticonceptivos orales?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Padeces el Síndrome de ovario poliquístico?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Padeces pseudohipoparatiroidismo?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Has sufrido periodos de exceso de ingesta de alimentos de un modo descontrolado?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Cuál es tu actividad física habitual?",
+          "answerType": "Múltiple",
+          "answers": [ "Alto", "Medio", "Bajo", "Ninguno" ]
+        },
+        {
+          "question": "¿Has sufrido trastornos alimenticios como bulimia?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Has padecido o padeces trastornos psicológicos?",
+          "answerType": "Libre"
+        },
+        {
+          "question": "¿Qué nivel de conocimiento posees sobre el procedimiento de la operación incluyendo las instrucciones preoperatorias y postoperatorias?",
+          "answerType": "Múltiple",
+          "answers": [ "Alto", "Medio", "Bajo", "Ninguno" ]
+        },
+        {
+          "question": "¿Tienes trabajo estable?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Qué nivel económico posees?",
+          "answerType": "Múltiple",
+          "answers": [ "Alto", "Medio", "Bajo" ]
+        },
+        {
+          "question": "¿Cómo calificarías tus relaciones sociales?",
+          "answerType": "Múltiple",
+          "answers": [ "Buenas", "Normales", "Malas", "Nulas" ]
+        },
+        {
+          "question": "¿Cómo calificarías tus relaciones familiares?",
+          "answerType": "Múltiple",
+          "answers": [ "Buenas", "Normales", "Malas", "Nulas" ]
+        },
+        {
+          "question": "¿Qué nivel de compromiso tienes con la operación?",
+          "answerType": "Múltiple",
+          "answers": [ "Alta", "Media", "Baja", "Ninguna" ]
+        },
+        {
+          "question": "¿Has bajado de peso recientemente?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        }
+      ]
+    },
+
+    {
+      "test": "Criterios psicológicos para la consideración de exclusión",
+      "id": 1,
+      "description":"Test psicológico que identifica diferentes factores de exclusión para la cirugía bariátrica",
+      "questions": [
+
+        {
+          "question": "¿Sufres de Psicosis activa actualmente o has estado hospitalizado en salud mental por psicosis en el último año?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Has recurrido al intento de suicidio en una o más de una ocasión durante los últimos 5 años?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Has sufrido algún trastorno por una ingesta descontrolada de alcohol en los últimos 6 meses?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Has sufrido algún trastorno por una ingesta descontrolada de otras sustancias en los últimos 6 meses?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Has sufrido o sufres un trastorno límite de la personalidad?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Qué nivel medio de adherencia a otros tratamientos has experimentado?",
+          "answerType": "Múltiple",
+          "answers": [ "Alto", "Medio","Bajo","Ninguno"]
+        }
+      ]
+    },
+
+    {
+      "test": "Consideraciones psicológicas para el retraso de la cirugía",
+      "id": 2,
+      "description":"Existen factores que no son incompatibles con la cirugía, aunque requieres retrasarla hasta que desaparezcan o sean tratados",
+      "questions": [
+        {
+          "question": "¿Has sufrido enfermedades mentales que actualmente no estén controladas o deterioro cognitivo? Ejemplo: TOC deficientemente controlado, depresión o ansiedad severa, trastorno bipolar grave, demencia",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Qué grado sufre de trastorno por atracón compulsivo confirmado por entrevista clínica?",
+          "answerType": "Múltiple",
+          "answers": [ "Grave", "Moderado", "Leve", "Ninguno" ]
+        },
+        {
+          "question": "¿Tienes hogar o vivienda?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Tienes falata de acceso a una cocina?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Qué nivel de apoyo social considera que tienes?",
+          "answerType": "Múltiple",
+          "answers": [ "Alto","Medio","Bajo","Ninguno"]
+        },
+        {
+          "question": "¿Qué nivel de autoeficacia consideras que tienes?",
+          "answerType": "Múltiple",
+          "answers": [ "Alto","Medio","Bajo","Ninguno"]
+        },
+        {
+          "question": "¿Qué nivel de auto-motivación considerarías que tienes?",
+          "answerType": "Múltiple",
+          "answers": [ "Alto","Medio","Bajo","Ninguno"]
+        },
+        {
+          "question": "¿Qué nivel de responsabilidad personal tienes?",
+          "answerType": "Múltiple",
+          "answers": [ "Alto","Medio","Bajo","Ninguno"]
+        }
+      ]
+    },
+
+    {
+      "test": "Factores asociados a los progenitores",
+      "id": 3,
+      "description":"Las conductas nutricionales del paciente son de extrema importación a la hora de determinar el mejor tratamiento para la obesidad. Este test permite recompilar información sobre ellas",
+      "questions": [
+        {
+          "question": "¿Has comido grandes cantidades de alimentos en cortos periodos de tiempo (por ejemplo 2 horas) durante los últimos 3 meses?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "Durante los momentos que comiste una cantidad inusualmente grande de alimentos, ¿alguna vez sentiste que no podías dejar de comer o controlar qué o cuánto comías?",
+          "answerType": "Múltiple",
+          "answers": [ "Sí", "No", "NS/NC" ]
+        },
+        {
+          "question": "Durante los últimos 3 meses, ¿con qué frecuencia media tuviste episodios como este? Es decir, una ingesta de grandes cantidades de comida además de la sensación de descontrol.",
+          "answerType": "Múltiple",
+          "answers": [ "Menos de 1 episodio por semana", "1 episodio por semana", "2-3 episodios por semana", "4-7 episodios por semana", "8-13 episodios por semana", "14 o más episodios por semana", "NS/NC" ]
+        },
+        {
+          "question": "Durante estos episodios, ¿normalmente comes mucho más rápido de lo normal?",
+          "answerType": "Múltiple",
+          "answers": [ "Sí", "No", "NS/NC" ]
+        },
+        {
+          "question": "Durante estos episodios, ¿normalmente comes hasta sentirte incómodamente saciado?",
+          "answerType": "Múltiple",
+          "answers": [ "Sí", "No", "NS/NC" ]
+        },
+        {
+          "question": "Durante estos episodios, ¿normalmente comes grandes cantidades de alimentos aunque no te sientas físicamente hambriento?",
+          "answerType": "Múltiple",
+          "answers": [ "Sí", "No", "NS/NC" ]
+        },
+        {
+          "question": "Durante estos episodios, ¿normalmente comes en solitario porque te sientes avergonzado?",
+          "answerType": "Múltiple",
+          "answers": [ "Sí", "No", "NS/NC" ]
+        },
+        {
+          "question": "Durante estos episodios, ¿normalmente te sientes disgustado consigo mismo, deprimido o muy culpable tras estos episodios?",
+          "answerType": "Múltiple",
+          "answers": [ "Sí", "No", "NS/NC" ]
+        },
+        {
+          "question": "Piensa en un episodio típico (Es decir, cuando comiste una gran cantiad de comida y sentiste que comer estaba fuera de tu control). ¿A qué hora del día comenzó este episodio?",
+          "answerType": "Múltiple",
+          "answers": [ "8am-12pm", "12pm- 4pm", "4pm-8pm", "12am-8am", "NS/NC" ]
+        },
+        {
+          "question": "¿Cuánto duró este episodio aproximadamente? Horas;Minutos",
+          "answerType": "Libre"
+        },
+        {
+          "question": "Lista los alimentos y líquidos consumidos durante este periodo, lo mejor que puedas recordar. Añada nombres de marcas, cantidades o tamaños de porciones en la medida de lo posible.",
+          "answerType": "Libre"
+        },
+        {
+          "question": "¿Cuánto tiempo transcurrió desde que habías finalizado la última comida hasta la aparición del episodio? Horas;Minutos",
+          "answerType": "Libre"
+        },
+        {
+          "question": "En general, ¿cómo te molestaba la aparición de estos episodios durante los últimos 3 meses?",
+          "answerType": "Múltiple",
+          "answers": [ "Extremadamente", "Mucho", "Moderadamente", "Un poco", "Nada", "NS/NC" ]
+        },
+        {
+          "question": "Durante los últimos 3 meses, ¿con qué frecuencia has vomitado para evitar ganar peso después de la aparición de un episodio?",
+          "answerType": "Múltiple",
+          "answers": [ "Ninguna", "Menos de 1 episodio por semana", "1 episodio por semana", "2-3 episodios por semana", "4-7 episodios por semana", "8-13 episodios por semana", "14 o más episodios por semana", "NS/NC" ]
+        },
+        {
+          "question": "Durante los últimos 3 meses, ¿con qué frecuencia has tomado una dósis mayor de la recomendada de laxantes para evitar el aumento de peso tras la aparición de uno de los episodios?",
+          "answerType": "Múltiple",
+          "answers": [ "Ninguna", "Menos de 1 vez por semana", "1 vez por semana", "2-3 veces por semana", "4-7 veces por semana", "8-13 veces por semana", "14 o más veces por semana", "NS/NC" ]
+        },
+        {
+          "question": "Durante los últimos 3 meses, ¿con qué frecuencia has tomado una dósis mayor de la recomendada de diuréticos (píldoras de agua) para evitar el aumento de peso tras la aparición de uno de los episodios?",
+          "answerType": "Múltiple",
+          "answers": [ "Ninguna", "Menos de 1 vez por semana", "1 vez por semana", "2-3 veces por semana", "4-7 veces por semana", "8-13 veces por semana", "14 o más veces por semana", "NS/NC" ]
+        },
+        {
+          "question": "Durante los últimos 3 meses, ¿con qué frecuencia has ayunado durante al menos 24 horas para evitar el aumento de peso tras la aparición de uno de los episodios?",
+          "answerType": "Múltiple",
+          "answers": [ "Ninguna", "Menos de 1 día por semana", "1 día por semana", "2 días por semana", "3 días por semana", "4-5 días por semana", "más de 5 días por semana", "NS/NC" ]
+        },
+        {
+          "question": "Durante los últimos 3 meses, ¿con qué frecuencia te has ejercitado excesivamente aunque interfiriera con actividades importantes o a pesar de estar lesionado, específicamente  para evitar el aumento de peso tras la aparición de uno de los episodios?",
+          "answerType": "Múltiple",
+          "answers": [ "Ninguna", "Menos de 1 vez por semana", "1 vez por semana", "2-3 veces por semana", "4-7 veces por semana", "8-13 veces por semana", "14 o más veces por semana", "NS/NC" ]
+        },
+        {
+          "question": "Durante los últimos 3 meses, ¿con qué frecuencia has tomado una dósis mayor de la recomendada de medicamentos para adelgazar tras la aparición de uno de los episodios?",
+          "answerType": "Múltiple",
+          "answers": [ "Ninguna", "Menos de 1 vez por semana", "1 vez por semana", "2-3 veces por semana", "4-7 veces por semana", "8-13 veces por semana", "14 o más veces por semana", "NS/NC" ]
+        },
+        {
+          "question": "Durante los últimos 3 meses, ¿cómo de importante ha sido tu peso o forma física en como te sientes contigo mismo?",
+          "answerType": "Múltiple",
+          "answers": [ "No muy importantes", "Importantes", "Bastante importantes", "Aspectos más importantes", "NS/NC" ]
+        },
+        {
+          "question": "Durante los últimos 3 meses, ¿alguna vez tuviste episodios durante los cuales sentías que no podías dejar de comer o controlar qué o cuánto comía pero sin ingerir cantidades inusualmente grandes de alimentos?  ",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No", "NS/NC" ]
+        },
+        {
+          "question": "Durante los últimos 3 meses, ¿con qué frecuencia has tenido este tipo de episodios (sensación de descontrol con la comida pero sin ingerir grandes cantidades de alimentos)?",
+          "answerType": "Múltiple",
+          "answers": [ "Menos de 1 episodio por semana", "1 episodio por semana", "2-3 episodios por semana", "4-7 episodios por semana", "8-13 episodios por semana", "14 o más episodios por semana", "NS/NC" ]
+        },
+        {
+          "question": "Durante estos episodios, ¿normalmente te sientes disgustado consigo mismo, deprimido o muy culpable tras estos episodios?",
+          "answerType": "Múltiple",
+          "answers": [ "Sí", "No", "NS/NC" ]
+        },
+        {
+          "question": "Durante estos episodios, ¿normalmente comes mucho más rápido de lo normal?",
+          "answerType": "Múltiple",
+          "answers": [ "Sí", "No", "NS/NC" ]
+        },
+        {
+          "question": "Durante estos episodios, ¿normalmente comes hasta sentirte incómodamente saciado?",
+          "answerType": "Múltiple",
+          "answers": [ "Sí", "No", "NS/NC" ]
+        },
+        {
+          "question": "Durante estos episodios, ¿normalmente comes grandes cantidades de alimentos aunque no te sientas físicamente hambriento?",
+          "answerType": "Múltiple",
+          "answers": [ "Sí", "No", "NS/NC" ]
+        },
+        {
+          "question": "Durante estos episodios, ¿normalmente comes en solitario porque te sientes avergonzado?",
+          "answerType": "Múltiple",
+          "answers": [ "Sí", "No", "NS/NC" ]
+        },
+        {
+          "question": "Durante estos episodios, ¿normalmente te sientes disgustado consigo mismo, deprimido o muy culpable tras estos episodios?",
+          "answerType": "Múltiple",
+          "answers": [ "Sí", "No", "NS/NC" ]
+        },
+        {
+          "question": "Piensa en un episodio típico (Es decir, cuando sentiste que comer estaba fuera de tu control sin ingerir cantidades inusualmente grandes de alimentos). ¿A qué hora del día comenzó este episodio?",
+          "answerType": "Múltiple",
+          "answers": [ "8am-12pm", "12pm- 4pm", "4pm-8pm", "12am-8am", "NS/NC" ]
+        },
+        {
+          "question": "¿Cuánto duró este episodio aproximadamente? Horas;Minutos",
+          "answerType": "Libre"
+        },
+        {
+          "question": "Lista los alimentos y líquidos consumidos durante este periodo, lo mejor que puedas recordar. Añada nombres de marcas, cantidades o tamaños de porciones en la medida de lo posible.",
+          "answerType": "Libre"
+        },
+        {
+          "question": "¿Cuánto tiempo transcurrió desde que habías finalizado la última comida hasta la aparición del episodio? Horas;Minutos",
+          "answerType": "Libre"
+        },
+        {
+          "question": "En general, ¿cómo te molestaba la aparición de estos episodios durante los últimos 3 meses?",
+          "answerType": "Múltiple",
+          "answers": [ "Extremadamente, Mucho, Moderadamente, Un poco, Nada, NS/NC" ]
+        },
+        {
+          "question": "Siendo 1 máxima delgadez y 9 extrema obesidad, ¿cómo calificaría el máximo peso de su padre biológico?",
+          "answerType": "Múltiple",
+          "answers": [ "1", "2", "3", "4", "5", "6", "7", "8", "9", "NS/NC" ]
+        },
+        {
+          "question": "Siendo 1 máxima delgadez y 9 extrema obesidad, ¿cómo calificaría el máximo peso de su madre biológica?",
+          "answerType": "Múltiple",
+          "answers": [ "1", "2", "3", "4", "5", "6", "7", "8", "9", "NS/NC" ]
+        }
+      ]
+    },
+
+    {
+      "test": "Escala multidimensional de control (MHLC). Forma A",
+      "id": 4,
+      "description":"Determina las propiedades métricas preliminares con la Escala multidimensional de Locus de control de la salud (MHLC), correspondiente a la subescala de internalidad",
+      "questions": [
+        {
+          "question": "Si te enfermas, es tu propio comportamiento lo que determina cuán pronto te recuperas de nuevo.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "No importa lo que hagas, si vas a enfermar, enfermarás.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Tener contacto regular con el médico es la mejor forma de evitar enfermedades.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "La mayoría de sucesos que afectan a tu salud ocurren por accidente.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Cuando no te sientes bien, tienes que consultar con un profesional con formación médica.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Estás en el total control de tu salud.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Tu familia tiene mucho que ver con tu estado de salud.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "La suerte juega un papel importante en el tiempo de recuperación.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Los profesionales de la salud controlan el estado de tu salud.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Tu buena salud es causada en buena medida por la suerte.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Lo que principalmente afecta a tu salud es lo que tu mismo hagas.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Cuando te recuperas de una enfermedad, es por lo general porque otras personas (por ejemplo, doctores, enfermeras, familiares, amigos) han estado cuidando bien de ti.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "No importan las medidas que tomes, es probable que enfermes.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Si está destinado, te mantendrás saludable.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Si tomas las decisiones correctas, puedes mantenerte saludable.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "En cuanto a tu salud, solo puedes hacer lo que el médico te diga que hagas.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        }
+      ]
+    },
+
+    {
+      "test": "Escala multidimensional de control (MHLC). Forma C",
+      "id": 5,
+      "description":"Determina las propiedades métricas preliminares con la Escala multidimensional de Locus de control de la salud (MHLC), correspondiente a la subescala de suerte/azar",
+      "questions": [
+        {
+          "question": "Si mi condición empeora, es tu propio comportamiento lo que determina cuándo te sentirás mejor.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "En cuanto a tu condición médica, lo que sea será.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Si ves a tu médico regularmente es menos probable que tengas problemas con tu condición médica.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "La mayoría de sucesos que afectan a tu condición médica ocurren por accidente.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Cuando empeore tu estado médico, tienes que consultar con un profesional con formación médica.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Estás en el total control de que tu condición médica mejore o empeore.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Otras personas juegan un papel importante en si tu condición médica mejora, permanece igual o empeora.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Todo lo que va mal en tu estado médico es únicamente culpa tuya.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "La suerte juega un papel importante en el tiempo de recuperación.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Para mejorar tu condición de salud, es necesario que otras personas sientan que todo está correcto.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Cualquier mejora que se produzca con tu estado de salud es causado en buena medida por la suerte.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Lo que principalmente afecta a tu condición es lo que tu mismo hagas.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Mereces gratitud cuando tu estado de salud mejora y la culpa cuando empeora.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Seguir a la perfección las órdenes del médico es la mejor manera de evitar que tu condición médica empeore.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Si tu estado médico empeora, es una cuestión de destino.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Si tienes suerte, tu estado mejorará.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Si tu condición médica empeora, es porque no te has cuidado correctamente.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "El tipo de ayuda que recibes de otras personas determina cuánto mejorará tu estado de salud.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        }
+      ]
+    },
+
+    {
+      "test": "Escala multidimensional de control (MHLC). Forma C",
+      "id": 6,
+      "description":"Determina las propiedades métricas preliminares con la Escala multidimensional de Locus de control de la salud (MHLC), correspondiente a la subescala de otras personas relevantes",
+      "questions": [
+        {
+          "question": "Si te enfermas, tienes el poder de recuperarte.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Frecuentemente piensas que no importa lo que hagas, si vas a enfermar, enfermarás.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Si ves a un médico excelente regularmente, es menos probable que tengas problemas de salud.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Parece que tu salud está muy influenciada por acontecimientos accidentales.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Únicamente puedes mantener un buen estado de salud consultando a profesionales.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Eres directamente responsable de tu salud.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Lo que vaya mal con tu salud, es únicamente tu culpa.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Cuando estás enfermo, sólo puedes dejar que la naturaleza siga su curso.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Los profesionales de la salud te mantienen saludable.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Cuando te mantienes con salud, es simplemente suerte.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Tu bienestar físico depende de lo bien que te cuides.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Cuando te sientes enfermo, sabes que no te estás cuidando bien.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "El tipo de atención que recibes de otras personas es determinante en la forma de recuperación de una enfermedad.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Incluso cuidándote, es fácil enfermar.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Cuando enfermas, es una cuestión de destino.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Puedes mantenerte saludable si te cuidas correctamente.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        },
+        {
+          "question": "Seguir a la perfección las indicaciones del médico es la mejor manera de mantenerte saludable.",
+          "answerType": "Múltiple",
+          "answers": [ "Muy en desacuerdo", "Moderadamente en desacuerdo", "Ligeramente en desacuerdo", "Ligeramente de acuerdo", "Moderadamente de acuerdo", "Fuertemente de acuerdo" ]
+        }
+      ]
+    },
+
+    {
+      "test": "Test DAST-10 de abuso de drogas",
+      "id": 7,
+      "description":"El cuestionario DAST tiene como objetivos el detectar problemas de abuso de drogas y el de servir, además, de evaluación del tratamiento.",
+      "questions": [
+        {
+          "question": "¿Has utilizado medicamentos distintos de los requeridos por razones médicas?",
+          "answerType": "Binaria",
+          "answers": [ "Si", "No" ]
+        },
+        {
+          "question": "¿Has abusado de más de una misma droga en el mismo periodo de tiempo?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Podrías dejar de consumir drogas cuando quieras? Si nunca has consumido drogas responde Sí.",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Has tenido pérdida del conocimiento o 'flashbacks' como resultado del uso de drogas?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Alguna vez te sientes disgustado o culpable por el uso de drogas? Si nunca has consumido drogas responde No.",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Tu pareja o familia se queja alguna vez de su involucración con las drogas?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Has descuidado a tu familia por el uso de las drogas?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Has participado en actividades ilegales para obtener drogas?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Alguna vez has experimentado síntomas del síndrome de abstinencia (sentimiento de malestar cuando dejas de tomar drogas)?",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        },
+        {
+          "question": "¿Has tenido problemas médicos como resultado del uso de drogas? Ejemplo: pérdida de memoria, hepatitis, convulsiones, sangrado, etc.",
+          "answerType": "Binaria",
+          "answers": [ "Sí", "No" ]
+        }
+      ]
+    },
+
+    {
+      "test": "Test de control de consumo de alcohol",
+      "id": 8,
+      "description":"Este cuestionario tiene como objetivos el detectar problemas de abuso de alcohol y en qué grado éste afecta a la vida del paciente",
+      "questions": [
+        {
+          "question": "¿Con qué frecuencia tomas bebidas alcohólicas?",
+          "answerType": "Múltiple",
+          "answers": [ "Nunca", "Mensual o menos", "2 a 4 veces al mes", "2 a 3 veces por semana", "4 o más veces a la semana" ]
+        },
+        {
+          "question": "¿Qué número de bebidas alcohólicas tomas en un típico día cuando estás bebiendo?",
+          "answerType": "Múltiple",
+          "answers": [ "1-2", "3-4", "5-6", "7-8-9", "10 o más", "NS/NC" ]
+        },
+        {
+          "question": "¿Con qué frecuencia tomas 6 o más bebidas en la misma ocasión?",
+          "answerType": "Múltiple",
+          "answers": [ "Nunca", "Menos de 1 vez al mes", "Menusalmente", "Semanalmente", "Diariamente o casi", "NS/NC" ]
+        },
+        {
+          "question": "¿Con qué frecuencia durante el último año has sentido que no eres capaz de dejar de beber?",
+          "answerType": "Múltiple",
+          "answers": [ "Nunca", "Menos de 1 vez al mes", "Menusalmente", "Semanalmente", "Diariamente o casi", "NS/NC" ]
+        },
+        {
+          "question": "¿Con qué frecuencia durante el último año has fallado en hacer lo que normalmente se esperaba de ti a causa de la bebida?",
+          "answerType": "Múltiple",
+          "answers": [ "Nunca", "Menos de 1 vez al mes", "Menusalmente", "Semanalmente", "Diariamente o casi", "NS/NC" ]
+        },
+        {
+          "question": "¿Con qué frecuencia durante el último año has necesitado tomar una bebida alcohólica a primera hora de la mañana tras un duro episodio de bebida?",
+          "answerType": "Múltiple",
+          "answers": [ "Nunca", "Menos de 1 vez al mes", "Menusalmente", "Semanalmente", "Diariamente o casi", "NS/NC" ]
+        },
+        {
+          "question": "¿Con qué frecuencia durante el último año has tenido un sentimiento de culpa o remordimiento después de beber?",
+          "answerType": "Múltiple",
+          "answers": [ "Nunca", "Menos de 1 vez al mes", "Menusalmente", "Semanalmente", "Diariamente o casi", "NS/NC" ]
+        },
+        {
+          "question": "¿Con qué frecuencia durante el último año has sido incapaz de recordar lo que sucedió la noche anterior a causa de la bebida?",
+          "answerType": "Múltiple",
+          "answers": [ "Nunca", "Menos de 1 vez al mes", "Menusalmente", "Semanalmente", "Diariamente o casi", "NS/NC" ]
+        },
+        {
+          "question": "¿Ha resultado alguien herido (otras personas o tú mismo) como causa de que hayas bebido?",
+          "answerType": "Múltiple",
+          "answers": [ "No", "Sí pero no durante el último año", "Sí durante el último año", "NS/NC" ]
+        },
+        {
+          "question": "¿Algún familiar, amigo, médico u otros se han preocupado por tu consumo de alcohol o te han sugerido que lo reduzcas?",
+          "answerType": "Múltiple",
+          "answers": [ "No", "Sí pero no durante el último año", "Sí durante el último año", "NS/NC" ]
+        }
+      ]
+    }
+  ]
+}
