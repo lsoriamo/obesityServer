@@ -7,8 +7,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import dad.us.dadVertx.entities.User;
+import org.apache.solr.client.solrj.request.CollectionAdminRequest.CreateAlias;
+
 import dad.us.dadVertx.entities.activities.Aim;
+import dad.us.dadVertx.entities.appointment.Appointment;
 import dad.us.dadVertx.entities.chat.ChatGroup;
 import dad.us.dadVertx.entities.chat.ChatMessage;
 import dad.us.dadVertx.entities.chat.ChatMessageState;
@@ -17,6 +19,8 @@ import dad.us.dadVertx.entities.consent.Consent;
 import dad.us.dadVertx.entities.medicine.Medicine;
 import dad.us.dadVertx.entities.medicine.MedicineDosage;
 import dad.us.dadVertx.entities.psychology.TestResponse;
+import dad.us.dadVertx.entities.user.User;
+import dad.us.dadVertx.entities.user.UserData;
 import dad.us.dadVertx.watson.WatsonQuestionAnswer;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.AsyncResult;
@@ -56,8 +60,19 @@ public class ChatServer extends AbstractVerticle {
 		Router router = Router.router(vertx);
 
 		router.route("/api/obesity/*").handler(BodyHandler.create());
-		
+
 		router.post("/api/obesity/consent/upload").handler(this::postUploadSignature);
+
+		router.get("/api/obesity/user/login/:userId").handler(this::getUser);
+		router.post("/api/obesity/user/login").handler(this::saveUser);
+
+		router.get("/api/obesity/user/data/:userId").handler(this::getUserData);
+		router.post("/api/obesity/user/data").handler(this::saveUserData);
+		router.delete("/api/obesity/user/data/:userId").handler(this::deleteUserData);
+
+		router.get("/api/obesity/appointment/:userId").handler(this::getUserAppointment);
+		router.post("/api/obesity/appointment").handler(this::saveUserAppointment);
+		router.delete("/api/obesity/appointment/:appointmentId").handler(this::deleteUserAppointment);
 
 		router.post("/api/obesity/medicine/drug").handler(this::saveMedicine);
 		router.get("/api/obesity/medicine/drug/:userId").handler(this::getMedicinesByUser);
@@ -83,6 +98,7 @@ public class ChatServer extends AbstractVerticle {
 		router.get("/api/obesity/groups/user/:userId").handler(this::getUserGroups);
 		router.get("/api/obesity/groups/relateduser/:userId").handler(this::getRelatedUsers);
 		router.get("/api/obesity/groups/members/:groupId").handler(this::getGroupUsers);
+		router.get("/api/obesity/groups/unread/unpending/:userId/:groupId").handler(this::markAsReadMessages);
 		router.get("/api/obesity/groups/unread/:userId/:groupId").handler(this::getUnreadMessages);
 		router.post("/api/obesity/groups/multi").handler(this::addMultiUserGroup);
 		router.post("/api/obesity/groups/single").handler(this::addSingleUserGroup);
@@ -102,7 +118,6 @@ public class ChatServer extends AbstractVerticle {
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-			System.out.println(jsonMessage.toString());
 			publishMessage(jsonMessage, message, eb);
 			getGroupUsers(jsonMessage.getGroup_id()).setHandler(new Handler<AsyncResult<List<User>>>() {
 
@@ -128,6 +143,7 @@ public class ChatServer extends AbstractVerticle {
 
 		eb.consumer("server.ping").handler(message -> {
 			message.reply(new JsonObject().put("pong", "pong"));
+			System.out.println("Ping recibido");
 		});
 
 		eb.consumer("chat.received").handler(message -> {
@@ -152,12 +168,12 @@ public class ChatServer extends AbstractVerticle {
 
 		bridge.listen(7000, res -> System.out.println("Ready"));
 
-		/*vertx.setPeriodic(10000, handler -> {
-			eb.publish("chat.to.server",
-					new JsonObject(
-							Json.encode(new ChatMessage("Mensaje a las " + Calendar.getInstance().getTime().toString(),
-									0, 32, 2, Calendar.getInstance().getTimeInMillis()))));
-		});*/
+		/*
+		 * vertx.setPeriodic(10000, handler -> { eb.publish("chat.to.server",
+		 * new JsonObject( Json.encode(new ChatMessage("Mensaje a las " +
+		 * Calendar.getInstance().getTime().toString(), 0, 32, 2,
+		 * Calendar.getInstance().getTimeInMillis())))); });
+		 */
 
 	}
 
@@ -185,6 +201,122 @@ public class ChatServer extends AbstractVerticle {
 
 	private void publishGroupInfo(Integer group_id, String info_message) {
 		vertx.eventBus().publish("info.to.client." + group_id, new JsonObject().put("info_message", info_message));
+	}
+
+	private void getUser(RoutingContext routingContext) {
+		Integer userId = new Integer(routingContext.request().getParam("userId"));
+		getUser(userId).setHandler(res -> {
+			if (res.succeeded()) {
+				routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+						.end(Json.encodePrettily(res.result()));
+			} else {
+				routingContext.response().setStatusCode(401).end();
+			}
+		});
+	}
+
+	private void saveUser(RoutingContext routingContext) {
+		User user = Json.decodeValue(routingContext.getBodyAsString(), User.class);
+		saveUser(user).setHandler(new Handler<AsyncResult<User>>() {
+			@Override
+			public void handle(AsyncResult<User> event) {
+				if (event.succeeded()) {
+					routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+							.end(Json.encode(event.result()));
+				} else {
+					routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+							.setStatusCode(401).end();
+				}
+			}
+		});
+	}
+
+	private void getUserData(RoutingContext routingContext) {
+		Integer userId = new Integer(routingContext.request().getParam("userId"));
+		getUserData(userId).setHandler(res -> {
+			if (res.succeeded()) {
+				routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+						.end(Json.encodePrettily(res.result()));
+			} else {
+				routingContext.response().setStatusCode(401).end();
+			}
+		});
+	}
+
+	private void saveUserData(RoutingContext routingContext) {
+		UserData userData = Json.decodeValue(routingContext.getBodyAsString(), UserData.class);
+		saveUserData(userData).setHandler(new Handler<AsyncResult<UserData>>() {
+			@Override
+			public void handle(AsyncResult<UserData> event) {
+				if (event.succeeded()) {
+					routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+							.end(Json.encode(event.result()));
+				} else {
+					routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+							.setStatusCode(401).end();
+				}
+			}
+		});
+	}
+
+	private void deleteUserData(RoutingContext routingContext) {
+		Integer userId = new Integer(routingContext.request().getParam("userId"));
+		deleteUserData(userId).setHandler(new Handler<AsyncResult<Boolean>>() {
+			@Override
+			public void handle(AsyncResult<Boolean> event) {
+				if (event.succeeded()) {
+					routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+							.end(Json.encode(event.result()));
+				} else {
+					routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+							.setStatusCode(401).end();
+				}
+			}
+		});
+	}
+
+	private void getUserAppointment(RoutingContext routingContext) {
+		Integer userId = new Integer(routingContext.request().getParam("userId"));
+		getUserAppointment(userId).setHandler(res -> {
+			if (res.succeeded()) {
+				routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+						.end(Json.encodePrettily(res.result()));
+			} else {
+				routingContext.response().setStatusCode(401).end();
+			}
+		});
+	}
+
+	private void saveUserAppointment(RoutingContext routingContext) {
+		Appointment appointment = Json.decodeValue(routingContext.getBodyAsString(), Appointment.class);
+		saveUserAppointment(appointment).setHandler(new Handler<AsyncResult<Appointment>>() {
+			@Override
+			public void handle(AsyncResult<Appointment> event) {
+				if (event.succeeded()) {
+					routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+							.end(Json.encode(event.result()));
+				} else {
+					routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+							.setStatusCode(401).end();
+				}
+			}
+		});
+	}
+
+	private void deleteUserAppointment(RoutingContext routingContext) {
+		Integer appointmentId = new Integer(routingContext.request().getParam("appointmentId"));
+		deleteUserAppointment(appointmentId).setHandler(new Handler<AsyncResult<Boolean>>() {
+			@Override
+			public void handle(AsyncResult<Boolean> event) {
+				if (event.succeeded()) {
+					routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+							.end(Json.encode(event.result()));
+				} else {
+					routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+							.setStatusCode(401).end();
+				}
+			}
+		});
 	}
 
 	private void getPendingConsent(RoutingContext routingContext) {
@@ -355,7 +487,6 @@ public class ChatServer extends AbstractVerticle {
 
 	private void getPsychologyTest(RoutingContext routingContext) {
 		Integer userId = new Integer(routingContext.request().getParam("userId"));
-		System.out.println(userId.toString());
 		// TODO: es posible enviar un test distinto en función del usuario
 		routingContext.response().putHeader("content-type", "application/json; charset=ascii")
 				.sendFile("testpsicologico.json");
@@ -411,7 +542,7 @@ public class ChatServer extends AbstractVerticle {
 	private void getGroupMessagesFromDate(RoutingContext routingContext) {
 		Long timestamp = new Long(routingContext.request().getParam("timestamp"));
 		Integer group_id = new Integer(routingContext.request().getParam("groupId"));
-		getGroupMessages(group_id, timestamp, Calendar.getInstance().getTimeInMillis(), 4000).setHandler(res -> {
+		getGroupMessages(group_id, timestamp, Calendar.getInstance().getTimeInMillis(), 100).setHandler(res -> {
 			if (res.succeeded()) {
 				JsonArray array = new JsonArray(res.result());
 				routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
@@ -440,7 +571,7 @@ public class ChatServer extends AbstractVerticle {
 		Long fromtimestamp = new Long(routingContext.request().getParam("fromtimestamp"));
 		Long totimestamp = new Long(routingContext.request().getParam("totimestamp"));
 		Integer group_id = new Integer(routingContext.request().getParam("groupId"));
-		getGroupMessages(group_id, fromtimestamp, totimestamp, 4000).setHandler(res -> {
+		getGroupMessages(group_id, fromtimestamp, totimestamp, 300).setHandler(res -> {
 			if (res.succeeded()) {
 				JsonArray array = new JsonArray(res.result());
 				routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
@@ -510,6 +641,18 @@ public class ChatServer extends AbstractVerticle {
 				JsonArray array = new JsonArray(res.result());
 				routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
 						.end(array.encodePrettily());
+			} else {
+				routingContext.response().setStatusCode(401).end();
+			}
+		});
+	}
+
+	private void markAsReadMessages(RoutingContext routingContext) {
+		Integer group_id = new Integer(routingContext.request().getParam("groupId"));
+		Integer user_id = new Integer(routingContext.request().getParam("userId"));
+		markAsReadMessages(user_id, group_id).setHandler(res -> {
+			if (res.succeeded()) {
+				routingContext.response().putHeader("content-type", "application/json; charset=utf-8").end();
 			} else {
 				routingContext.response().setStatusCode(401).end();
 			}
@@ -804,6 +947,43 @@ public class ChatServer extends AbstractVerticle {
 		return future;
 	}
 
+	private Future<Boolean> markAsReadMessages(Integer user_id, Integer group_id) {
+		Future<Boolean> future = Future.future();
+		mySQLClient.getConnection(conn -> {
+			if (conn.succeeded()) {
+				try {
+					conn.result().queryWithParams(
+							"INSERT INTO retoobesidad.chat_message_state (message_id,user_id,state,timestamp)"
+									+ " 	SELECT group_msg.id_message, ?, 'Read', ? "
+									+ "			FROM retoobesidad.chat_group_messages AS group_msg"
+									+ " 		WHERE group_msg.group_id = ? AND group_msg.user_id != ?"
+									+ " 			AND NOT EXISTS ("
+									+ "					SELECT state_msg.message_id "
+									+ "						FROM retoobesidad.chat_message_state AS state_msg "
+									+ " 					WHERE group_msg.id_message = state_msg.message_id"
+									+ " 						AND state_msg.user_id = ?"
+									+ " 						AND state_msg.state LIKE 'Read');",
+							new JsonArray().add(user_id).add(Calendar.getInstance().getTimeInMillis()).add(group_id)
+									.add(user_id).add(user_id),
+							res -> {
+								conn.result().close();
+								if (res.succeeded()) {
+									future.complete(true);
+								} else {
+									future.fail(res.cause());
+								}
+							});
+				} catch (Exception e) {
+					future.fail(e.getCause());
+					conn.result().close();
+				}
+			} else {
+				future.fail(conn.cause());
+			}
+		});
+		return future;
+	}
+
 	private Future<List<ChatMessage>> getUnreadMessages(Integer user_id, Integer group_id) {
 		Future<List<ChatMessage>> future = Future.future();
 		mySQLClient.getConnection(conn -> {
@@ -813,8 +993,8 @@ public class ChatServer extends AbstractVerticle {
 							+ " WHERE group_msg.group_id = ? AND group_msg.user_id != ? AND NOT EXISTS ("
 							+ "   SELECT state_msg.message_id FROM retoobesidad.chat_message_state AS state_msg "
 							+ "	  WHERE group_msg.id_message = state_msg.message_id"
-							+ "		AND state_msg.user_id = ?" + "		AND state_msg.state LIKE 'Read'" + " );",
-							new JsonArray().add(group_id).add(user_id).add(user_id), res -> {
+							+ "		AND state_msg.user_id = ?" + "		AND state_msg.state LIKE 'Read'"
+							+ " ) LIMIT 200;", new JsonArray().add(group_id).add(user_id).add(user_id), res -> {
 								conn.result().close();
 								if (res.succeeded()) {
 									List<ChatMessage> messages = new ArrayList<ChatMessage>();
@@ -1000,6 +1180,293 @@ public class ChatServer extends AbstractVerticle {
 			}
 		});
 
+		return future;
+	}
+
+	private Future<User> getUser(Integer userId) {
+		Future<User> future = Future.future();
+		mySQLClient.getConnection(conn -> {
+			if (conn.succeeded()) {
+				try {
+					String select = "SELECT * FROM retoobesidad.users WHERE iduser = ?;";
+					conn.result().queryWithParams(select, new JsonArray().add(userId), res2 -> {
+						conn.result().close();
+						if (res2.succeeded()) {
+							User userData = Json.decodeValue(res2.result().getRows().get(0).encode(), User.class);
+							future.complete(userData);
+						} else {
+							future.fail(res2.cause());
+						}
+					});
+				} catch (Exception e) {
+					future.fail(e.getCause());
+					conn.result().close();
+				}
+			} else {
+				future.fail(conn.cause());
+			}
+		});
+
+		return future;
+	}
+
+	private Future<User> saveUser(User user) {
+		Future<User> future = Future.future();
+		mySQLClient.getConnection(conn -> {
+			if (conn.succeeded()) {
+				try {
+					conn.result().updateWithParams(
+							"INSERT INTO retoobesidad.users (iduser,name,surname,nickname,passhash,email,image) "
+									+ "VALUES (?,?,?,?,?,?,?) " + "ON DUPLICATE KEY UPDATE "
+									+ "name = ?, surname = ?, nickname = ?, passhash = ?, email = ?, " + "image = ?",
+							new JsonArray().add(user.getIduser()).add(user.getName()).add(user.getSurname())
+									.add(user.getNickname()).add("").add(user.getEmail()).add(user.getImage())
+									.add(user.getName()).add(user.getSurname()).add(user.getNickname()).add("")
+									.add(user.getEmail()).add(user.getImage()),
+							res2 -> {
+								conn.result().close();
+								if (res2.succeeded() && res2.result().getUpdated() == 1) {
+									createGroup(user, "Cirujano bariátrico", "Conversación con el cirujano bariátrico")
+											.setHandler(new Handler<AsyncResult<ChatGroup>>() {
+
+												@Override
+												public void handle(AsyncResult<ChatGroup> event) {
+													addUserToGroup(user.getIduser(), event.result().getIdchat_group(),
+															Calendar.getInstance().getTimeInMillis());
+													addUserToGroup(3, event.result().getIdchat_group(),
+															Calendar.getInstance().getTimeInMillis());
+												}
+											});
+									createGroup(user, "Endocrino", "Conversación con el endocrino")
+											.setHandler(new Handler<AsyncResult<ChatGroup>>() {
+
+												@Override
+												public void handle(AsyncResult<ChatGroup> event) {
+													addUserToGroup(user.getIduser(), event.result().getIdchat_group(),
+															Calendar.getInstance().getTimeInMillis());
+													addUserToGroup(4, event.result().getIdchat_group(),
+															Calendar.getInstance().getTimeInMillis());
+												}
+											});
+									saveAim(new Aim(user.getIduser(), 0, Calendar.getInstance().getTimeInMillis(), 50f,
+											Aim.AimType.activeMinutes.ordinal()));
+									saveAim(new Aim(user.getIduser(), 0, Calendar.getInstance().getTimeInMillis(),
+											1250f, Aim.AimType.caloriesOut.ordinal()));
+									saveAim(new Aim(user.getIduser(), 0, Calendar.getInstance().getTimeInMillis(), 0.5f,
+											Aim.AimType.distance.ordinal()));
+									saveAim(new Aim(user.getIduser(), 0, Calendar.getInstance().getTimeInMillis(),
+											3000f, Aim.AimType.steps.ordinal()));
+								}
+								
+								if (res2.succeeded() && res2.result().getKeys().size() > 0) {
+									future.complete(user);
+								} else {
+									future.fail(res2.cause());
+								}
+							});
+				} catch (Exception e) {
+					future.fail(e.getCause());
+					conn.result().close();
+				}
+			} else {
+				future.fail(conn.cause());
+			}
+		});
+		return future;
+	}
+
+	private Future<List<Appointment>> getUserAppointment(Integer userId) {
+		Future<List<Appointment>> future = Future.future();
+		mySQLClient.getConnection(conn -> {
+			if (conn.succeeded()) {
+				try {
+					String select = "SELECT * FROM retoobesidad.appointments WHERE iduser = ?;";
+					conn.result().queryWithParams(select, new JsonArray().add(userId), res2 -> {
+						conn.result().close();
+						if (res2.succeeded()) {
+							List<Appointment> appointments = new ArrayList<Appointment>();
+							for (JsonObject appointment : res2.result().getRows()) {
+								appointments.add(Json.decodeValue(appointment.encode(), Appointment.class));
+							}
+							future.complete(appointments);
+						} else {
+							future.fail(res2.cause());
+						}
+					});
+				} catch (Exception e) {
+					future.fail(e.getCause());
+					conn.result().close();
+				}
+			} else {
+				future.fail(conn.cause());
+			}
+		});
+
+		return future;
+	}
+
+	private Future<Appointment> saveUserAppointment(Appointment appointment) {
+		Future<Appointment> future = Future.future();
+		mySQLClient.getConnection(conn -> {
+			if (conn.succeeded()) {
+				try {
+					conn.result().updateWithParams(
+							"INSERT INTO retoobesidad.appointments (idappointment, timestamp,doctor,description,place,things,"
+									+ "iduser,type) " + "VALUES (?,?,?,?,?,?,?,?) "
+									+ "ON DUPLICATE KEY UPDATE idappointment = ?, timestamp = ?, "
+									+ "doctor = ?, description = ?, place = ?, things = ?, iduser = ?, " + "type = ?",
+							new JsonArray().add(appointment.getIdAppointment()).add(appointment.getTimestamp())
+									.add(appointment.getDoctor()).add(appointment.getDescription())
+									.add(appointment.getPlace()).add(appointment.getThings())
+									.add(appointment.getIduser()).add(appointment.getType())
+									.add(appointment.getIdAppointment()).add(appointment.getTimestamp())
+									.add(appointment.getDoctor()).add(appointment.getDescription())
+									.add(appointment.getPlace()).add(appointment.getThings())
+									.add(appointment.getIduser()).add(appointment.getType()),
+							res2 -> {
+								if (res2.succeeded() && res2.result().getKeys().size() > 0) {
+									conn.result().close();
+									appointment.setIduser(res2.result().getKeys().getInteger(0));
+									future.complete(appointment);
+								} else {
+									future.fail(res2.cause());
+								}
+							});
+				} catch (Exception e) {
+					future.fail(e.getCause());
+					conn.result().close();
+				}
+			} else {
+				future.fail(conn.cause());
+			}
+		});
+		return future;
+	}
+
+	private Future<Boolean> deleteUserAppointment(Integer appointmentId) {
+		Future<Boolean> future = Future.future();
+		mySQLClient.getConnection(conn -> {
+			if (conn.succeeded()) {
+				try {
+					conn.result().queryWithParams("DELETE FROM retoobesidad.appointments WHERE idappointment = ?",
+							new JsonArray().add(appointmentId), res -> {
+								conn.result().close();
+								if (res.succeeded()) {
+									future.complete(true);
+								} else {
+									future.fail(res.cause());
+								}
+							});
+				} catch (Exception e) {
+					future.fail(e.getCause());
+					conn.result().close();
+				}
+			} else {
+				future.fail(conn.cause());
+			}
+		});
+		return future;
+	}
+
+	private Future<UserData> getUserData(Integer userId) {
+		Future<UserData> future = Future.future();
+		mySQLClient.getConnection(conn -> {
+			if (conn.succeeded()) {
+				try {
+					String select = "SELECT * FROM retoobesidad.user_data WHERE user_id = ?;";
+					conn.result().queryWithParams(select, new JsonArray().add(userId), res2 -> {
+						conn.result().close();
+						if (res2.succeeded()) {
+							UserData userData = Json.decodeValue(res2.result().getRows().get(0).encode(),
+									UserData.class);
+							future.complete(userData);
+						} else {
+							future.fail(res2.cause());
+						}
+					});
+				} catch (Exception e) {
+					future.fail(e.getCause());
+					conn.result().close();
+				}
+			} else {
+				future.fail(conn.cause());
+			}
+		});
+
+		return future;
+	}
+
+	private Future<UserData> saveUserData(UserData userData) {
+		Future<UserData> future = Future.future();
+		mySQLClient.getConnection(conn -> {
+			if (conn.succeeded()) {
+				try {
+					System.out.println(userData.toString());
+					conn.result().updateWithParams(
+							"INSERT INTO retoobesidad.user_data (user_id,nacimiento,altura,peso,hipertension,"
+									+ "diabetes,apnea,lesion_articular,hiperlipidemia,vesicula,higado,osteoporosis,cardiaca,ejercicio,fecha_intervencion,fecha_primer_uso_app,peso_objetivo) "
+									+ "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
+									+ "ON DUPLICATE KEY UPDATE nacimiento = ?, "
+									+ "altura = ?, peso = ?, hipertension = ?, diabetes = ?, apnea = ?, "
+									+ "lesion_articular = ?, hiperlipidemia = ?, vesicula = ?, higado = ?, osteoporosis = ?, cardiaca = ?, ejercicio = ?, "
+									+ "fecha_intervencion = ?, fecha_primer_uso_app = ?, peso_objetivo = ?",
+							new JsonArray().add(userData.getUser_id()).add(userData.getNacimiento())
+									.add(userData.getAltura()).add(userData.getPeso()).add(userData.getHipertension())
+									.add(userData.getDiabetes()).add(userData.getApnea())
+									.add(userData.getLesion_articular()).add(userData.getHiperlipidemia())
+									.add(userData.getVesicula()).add(userData.getHigado())
+									.add(userData.getOsteoporosis()).add(userData.getCardiaca())
+									.add(userData.getEjercicio()).add(userData.getFecha_intervencion())
+									.add(userData.getFecha_primer_uso_app()).add(userData.getPeso_objetivo()).add(userData.getNacimiento())
+									.add(userData.getAltura()).add(userData.getPeso()).add(userData.getHipertension())
+									.add(userData.getDiabetes()).add(userData.getApnea())
+									.add(userData.getLesion_articular()).add(userData.getHiperlipidemia())
+									.add(userData.getVesicula()).add(userData.getHigado())
+									.add(userData.getOsteoporosis()).add(userData.getCardiaca())
+									.add(userData.getEjercicio()).add(userData.getFecha_intervencion())
+									.add(userData.getFecha_primer_uso_app()).add(userData.getPeso_objetivo()),
+							res2 -> {
+								conn.result().close();
+								if (res2.succeeded() && res2.result().getKeys().size() > 0) {
+									userData.setIduser_data(res2.result().getKeys().getInteger(0));
+									future.complete(userData);
+								} else {
+									future.fail(res2.cause());
+								}
+							});
+				} catch (Exception e) {
+					future.fail(e.getCause());
+					conn.result().close();
+				}
+			} else {
+				future.fail(conn.cause());
+			}
+		});
+		return future;
+	}
+
+	private Future<Boolean> deleteUserData(Integer userId) {
+		Future<Boolean> future = Future.future();
+		mySQLClient.getConnection(conn -> {
+			if (conn.succeeded()) {
+				try {
+					conn.result().queryWithParams("DELETE FROM retoobesidad.user_data WHERE user_id = ?",
+							new JsonArray().add(userId), res -> {
+								conn.result().close();
+								if (res.succeeded()) {
+									future.complete(true);
+								} else {
+									future.fail(res.cause());
+								}
+							});
+				} catch (Exception e) {
+					future.fail(e.getCause());
+					conn.result().close();
+				}
+			} else {
+				future.fail(conn.cause());
+			}
+		});
 		return future;
 	}
 
@@ -1206,6 +1673,35 @@ public class ChatServer extends AbstractVerticle {
 			}
 		});
 
+		return future;
+	}
+
+	private Future<Aim> saveAim(Aim aim) {
+		Future<Aim> future = Future.future();
+		mySQLClient.getConnection(conn -> {
+			if (conn.succeeded()) {
+				try {
+					conn.result().updateWithParams(
+							"INSERT INTO `retoobesidad`.`user_aim`(`iduser`,`timestamp`,`value`,`type`) VALUES(?,?,?,?)",
+							new JsonArray().add(aim.getIduser()).add(aim.getTimestamp()).add(aim.getValue())
+									.add(aim.getType()),
+							res2 -> {
+								conn.result().close();
+								if (res2.succeeded() && res2.result().getKeys().size() > 0) {
+									aim.setIdAim(res2.result().getKeys().getInteger(0));
+									future.complete(aim);
+								} else {
+									future.fail(res2.cause());
+								}
+							});
+				} catch (Exception e) {
+					future.fail(e.getCause());
+					conn.result().close();
+				}
+			} else {
+				future.fail(conn.cause());
+			}
+		});
 		return future;
 	}
 

@@ -1,6 +1,6 @@
 package dad.us.dadVertx;
 
-import dad.us.dadVertx.entities.User;
+import dad.us.dadVertx.entities.user.User;
 
 public class ChatServerStrings {
 
