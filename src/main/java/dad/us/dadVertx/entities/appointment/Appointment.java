@@ -1,5 +1,7 @@
 package dad.us.dadVertx.entities.appointment;
 
+import java.util.Calendar;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -11,161 +13,190 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Appointment {
 
-	Integer idAppointment;
-	Long timestamp;
-	String doctor;
-	String description;
-	String place;
-	String things;
-	Integer iduser;
-	Integer type;
+    @JsonProperty("idAppointment")
+    protected Integer idAppointment;
+    @JsonProperty("timestamp")
+    protected Long timestamp;
+    @JsonProperty("doctor")
+    protected String doctor;
+    @JsonProperty("description")
+    protected String description;
+    @JsonProperty("place")
+    protected String place;
+    @JsonProperty("things")
+    protected String things;
+    @JsonProperty("iduser")
+    protected Long iduser;
+    @JsonProperty("type")
+    protected Integer type;
+    @JsonProperty("status")
+    protected Integer status;
+    @JsonProperty("lastUpdateTimestamp")
+    protected Long lastUpdateTimestamp;
 
-	@JsonCreator
-	public Appointment(@JsonProperty("idappointment") Integer idAppointment, @JsonProperty("timestamp") Long timestamp,
-			@JsonProperty("doctor") String doctor, @JsonProperty("description") String description,
-			@JsonProperty("place") String place, @JsonProperty("things") String things,
-			@JsonProperty("iduser") Integer iduser, @JsonProperty("type") Integer type) {
-		super();
-		this.idAppointment = idAppointment;
-		this.timestamp = timestamp;
-		this.doctor = doctor;
-		this.description = description;
-		this.place = place;
-		this.things = things;
-		this.iduser = iduser;
-		this.type = type;
-	}
+    @JsonCreator
+    public Appointment(@JsonProperty("lastUpdateTimestamp") Long lastUpdateTimestamp, @JsonProperty("idappointment") Integer idAppointment, @JsonProperty("timestamp") Long timestamp,
+                       @JsonProperty("doctor") String doctor, @JsonProperty("description") String description,
+                       @JsonProperty("place") String place, @JsonProperty("things") String things,
+                       @JsonProperty("iduser") Long iduser, @JsonProperty("type") Integer type, @JsonProperty("status") Integer status) {
+        super();
+        this.lastUpdateTimestamp = lastUpdateTimestamp;
+        this.idAppointment = idAppointment;
+        this.timestamp = timestamp;
+        this.doctor = doctor;
+        this.description = description;
+        this.place = place;
+        this.things = things;
+        this.iduser = iduser;
+        this.type = type;
+        this.status = status;
+    }
 
-	public Integer getType() {
-		return type;
-	}
+    public Appointment() {
+        super();
+        this.lastUpdateTimestamp = Calendar.getInstance().getTimeInMillis();
+        this.timestamp = 0l;
+        this.doctor = "";
+        this.description = "";
+        this.place = "";
+        this.things = "";
+        this.iduser = 0l;
+        this.type = 0;
+        this.status = 1;
+    }
 
-	public void setType(Integer type) {
-		this.type = type;
-	}
+    public Integer getIdAppointment() {
+        return idAppointment;
+    }
 
-	public Integer getIdAppointment() {
-		return idAppointment;
-	}
+    public void setIdAppointment(Integer idAppointment) {
+        this.idAppointment = idAppointment;
+    }
 
-	public void setIdAppointment(Integer idAppointment) {
-		this.idAppointment = idAppointment;
-	}
+    public Long getTimestamp() {
+        return timestamp;
+    }
 
-	public Long getTimestamp() {
-		return timestamp;
-	}
+    public void setTimestamp(Long timestamp) {
+        this.timestamp = timestamp;
+    }
 
-	public void setTimestamp(Long timestamp) {
-		this.timestamp = timestamp;
-	}
+    public String getDoctor() {
+        return doctor;
+    }
 
-	public String getDoctor() {
-		return doctor;
-	}
+    public void setDoctor(String doctor) {
+        this.doctor = doctor;
+    }
 
-	public void setDoctor(String doctor) {
-		this.doctor = doctor;
-	}
+    public String getDescription() {
+        return description;
+    }
 
-	public String getDescription() {
-		return description;
-	}
+    public void setDescription(String description) {
+        this.description = description;
+    }
 
-	public void setDescription(String description) {
-		this.description = description;
-	}
+    public String getPlace() {
+        return place;
+    }
 
-	public String getPlace() {
-		return place;
-	}
+    public void setPlace(String place) {
+        this.place = place;
+    }
 
-	public void setPlace(String place) {
-		this.place = place;
-	}
+    public String getThings() {
+        return things;
+    }
 
-	public String getThings() {
-		return things;
-	}
+    public void setThings(String things) {
+        this.things = things;
+    }
 
-	public void setThings(String things) {
-		this.things = things;
-	}
+    public Long getIduser() {
+        return iduser;
+    }
 
-	public Integer getIduser() {
-		return iduser;
-	}
+    public void setIduser(Long iduser) {
+        this.iduser = iduser;
+    }
 
-	public void setIduser(Integer iduser) {
-		this.iduser = iduser;
-	}
+    public Integer getType() {
+        return type;
+    }
 
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + ((description == null) ? 0 : description.hashCode());
-		result = prime * result + ((doctor == null) ? 0 : doctor.hashCode());
-		result = prime * result + ((idAppointment == null) ? 0 : idAppointment.hashCode());
-		result = prime * result + ((iduser == null) ? 0 : iduser.hashCode());
-		result = prime * result + ((place == null) ? 0 : place.hashCode());
-		result = prime * result + ((things == null) ? 0 : things.hashCode());
-		result = prime * result + ((timestamp == null) ? 0 : timestamp.hashCode());
-		return result;
-	}
+    public void setType(Integer type) {
+        this.type = type;
+    }
 
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		Appointment other = (Appointment) obj;
-		if (description == null) {
-			if (other.description != null)
-				return false;
-		} else if (!description.equals(other.description))
-			return false;
-		if (doctor == null) {
-			if (other.doctor != null)
-				return false;
-		} else if (!doctor.equals(other.doctor))
-			return false;
-		if (idAppointment == null) {
-			if (other.idAppointment != null)
-				return false;
-		} else if (!idAppointment.equals(other.idAppointment))
-			return false;
-		if (iduser == null) {
-			if (other.iduser != null)
-				return false;
-		} else if (!iduser.equals(other.iduser))
-			return false;
-		if (place == null) {
-			if (other.place != null)
-				return false;
-		} else if (!place.equals(other.place))
-			return false;
-		if (things == null) {
-			if (other.things != null)
-				return false;
-		} else if (!things.equals(other.things))
-			return false;
-		if (timestamp == null) {
-			if (other.timestamp != null)
-				return false;
-		} else if (!timestamp.equals(other.timestamp))
-			return false;
-		return true;
-	}
+    public Integer getStatus() {
+        return status;
+    }
 
-	@Override
-	public String toString() {
-		return "Appointment [idAppointment=" + idAppointment + ", timestamp=" + timestamp + ", doctor=" + doctor
-				+ ", description=" + description + ", place=" + place + ", things=" + things + ", iduser=" + iduser
-				+ "]";
-	}
+    public void setStatus(Integer status) {
+        this.status = status;
+    }
+
+    public Long getLastUpdateTimestamp() {
+        return lastUpdateTimestamp;
+    }
+
+    public void setLastUpdateTimestamp(Long lastUpdateTimestamp) {
+        this.lastUpdateTimestamp = lastUpdateTimestamp;
+    }
+
+    @Override
+    public String toString() {
+        return "Appointment{" +
+                "idAppointment=" + idAppointment +
+                ", timestamp=" + timestamp +
+                ", doctor='" + doctor + '\'' +
+                ", description='" + description + '\'' +
+                ", place='" + place + '\'' +
+                ", things='" + things + '\'' +
+                ", iduser=" + iduser +
+                ", type=" + type +
+                ", status=" + status +
+                ", lastUpdateTimestamp=" + lastUpdateTimestamp +
+                '}';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        Appointment that = (Appointment) o;
+
+        if (idAppointment != null ? !idAppointment.equals(that.idAppointment) : that.idAppointment != null)
+            return false;
+        if (timestamp != null ? !timestamp.equals(that.timestamp) : that.timestamp != null)
+            return false;
+        if (doctor != null ? !doctor.equals(that.doctor) : that.doctor != null) return false;
+        if (description != null ? !description.equals(that.description) : that.description != null)
+            return false;
+        if (place != null ? !place.equals(that.place) : that.place != null) return false;
+        if (things != null ? !things.equals(that.things) : that.things != null) return false;
+        if (iduser != null ? !iduser.equals(that.iduser) : that.iduser != null) return false;
+        if (type != null ? !type.equals(that.type) : that.type != null) return false;
+        if (status != null ? !status.equals(that.status) : that.status != null) return false;
+        return lastUpdateTimestamp != null ? lastUpdateTimestamp.equals(that.lastUpdateTimestamp) : that.lastUpdateTimestamp == null;
+
+    }
+
+    @Override
+    public int hashCode() {
+        int result = idAppointment != null ? idAppointment.hashCode() : 0;
+        result = 31 * result + (timestamp != null ? timestamp.hashCode() : 0);
+        result = 31 * result + (doctor != null ? doctor.hashCode() : 0);
+        result = 31 * result + (description != null ? description.hashCode() : 0);
+        result = 31 * result + (place != null ? place.hashCode() : 0);
+        result = 31 * result + (things != null ? things.hashCode() : 0);
+        result = 31 * result + (iduser != null ? iduser.hashCode() : 0);
+        result = 31 * result + (type != null ? type.hashCode() : 0);
+        result = 31 * result + (status != null ? status.hashCode() : 0);
+        result = 31 * result + (lastUpdateTimestamp != null ? lastUpdateTimestamp.hashCode() : 0);
+        return result;
+    }
 
 }

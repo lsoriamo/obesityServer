@@ -1,5 +1,7 @@
 package dad.us.dadVertx.entities.medicine;
 
+import java.util.Calendar;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -7,266 +9,211 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Medicine {
 
-	private Integer idmedicine;
-	private Integer iduser;
-	private String medicine;
-	private String observations;
-	private Long begin_timestamp;
-	private Long end_timestamp;
-	private Integer each_days;
-	private Boolean mon;
-	private Boolean tue;
-	private Boolean wed;
-	private Boolean thu;
-	private Boolean fri;
-	private Boolean sat;
-	private Boolean sun;
+    @JsonProperty("idmedicine")
+    private Integer idmedicine;
+    @JsonProperty("iduser")
+    private Long iduser;
+    @JsonProperty("medicine")
+    private String medicine;
+    @JsonProperty("observations")
+    private String observations;
+    @JsonProperty("begin_timestamp")
+    private Long begin_timestamp;
+    @JsonProperty("end_timestamp")
+    private String end_timestamp;
+    @JsonProperty("method")
+    private String method;
+    @JsonProperty("days")
+    private String days;
+    @JsonProperty("dosage")
+    private String dosage;
+    @JsonProperty("status")
+    private Integer status;
+    @JsonProperty("lastUpdateTimestamp")
+    protected Long lastUpdateTimestamp;
 
-	@JsonCreator
-	public Medicine(@JsonProperty("idmedicine") Integer idmedicine, @JsonProperty("iduser") Integer iduser,
-			@JsonProperty("medicine") String medicine, @JsonProperty("observations") String observations,
-			@JsonProperty("begin_timestamp") Long begin_timestamp, @JsonProperty("end_timestamp") Long end_timestamp,
-			@JsonProperty("each_days") Integer each_days, @JsonProperty("mon") Boolean mon,
-			@JsonProperty("tue") Boolean tue, @JsonProperty("wed") Boolean wed, @JsonProperty("thu") Boolean thu,
-			@JsonProperty("fri") Boolean fri, @JsonProperty("sat") Boolean sat, @JsonProperty("sun") Boolean sun) {
-		super();
-		this.idmedicine = idmedicine;
-		this.iduser = iduser;
-		this.medicine = medicine;
-		this.observations = observations;
-		this.begin_timestamp = begin_timestamp;
-		this.end_timestamp = end_timestamp;
-		this.each_days = each_days;
-		this.mon = mon;
-		this.tue = tue;
-		this.wed = wed;
-		this.thu = thu;
-		this.fri = fri;
-		this.sat = sat;
-		this.sun = sun;
-	}
+    @JsonCreator
+    public Medicine(@JsonProperty("lastUpdateTimestamp") Long lastUpdateTimestamp, @JsonProperty("idmedicine") Integer idmedicine, @JsonProperty("iduser") Long iduser,
+                    @JsonProperty("medicine") String medicine, @JsonProperty("observations") String observations,
+                    @JsonProperty("begin_timestamp") Long begin_timestamp, @JsonProperty("end_timestamp") String end_timestamp,
+                    @JsonProperty("method") String method, @JsonProperty("days") String days,
+                    @JsonProperty("dosage") String dosage, @JsonProperty("status") Integer status) {
+        super();
+        this.idmedicine = idmedicine;
+        this.iduser = iduser;
+        this.medicine = medicine;
+        this.observations = observations;
+        this.begin_timestamp = begin_timestamp;
+        this.end_timestamp = end_timestamp;
+        this.method = method;
+        this.dosage = dosage;
+        this.days = days;
+        this.status = status;
+        this.lastUpdateTimestamp = lastUpdateTimestamp;
+    }
 
-	public Integer getIdmedicine() {
-		return idmedicine;
-	}
+    public Medicine() {
+        this.iduser = 0l;
+        this.medicine = "";
+        this.observations = "";
+        this.begin_timestamp = 0l;
+        this.end_timestamp = "";
+        this.method = "";
+        this.dosage = "";
+        this.days = "";
+        this.status = 1;
+        lastUpdateTimestamp = Calendar.getInstance().getTimeInMillis();
+    }
+    
+    public Integer getIdmedicine() {
+        return idmedicine;
+    }
 
-	public void setIdmedicine(Integer idmedicine) {
-		this.idmedicine = idmedicine;
-	}
+    public void setIdmedicine(Integer idmedicine) {
+        this.idmedicine = idmedicine;
+    }
 
-	public Integer getIduser() {
-		return iduser;
-	}
+    public Long getIduser() {
+        return iduser;
+    }
 
-	public void setIduser(Integer iduser) {
-		this.iduser = iduser;
-	}
+    public void setIduser(Long iduser) {
+        this.iduser = iduser;
+    }
 
-	public String getMedicine() {
-		return medicine;
-	}
+    public String getMedicine() {
+        return medicine;
+    }
 
-	public void setMedicine(String medicine) {
-		this.medicine = medicine;
-	}
+    public void setMedicine(String medicine) {
+        this.medicine = medicine;
+    }
 
-	public String getObservations() {
-		return observations;
-	}
+    public String getObservations() {
+        return observations;
+    }
 
-	public void setObservations(String observations) {
-		this.observations = observations;
-	}
+    public void setObservations(String observations) {
+        this.observations = observations;
+    }
 
-	public Long getBegin_timestamp() {
-		return begin_timestamp;
-	}
+    public Long getBeginTimestamp() {
+        return begin_timestamp;
+    }
 
-	public void setBegin_timestamp(Long begin_timestamp) {
-		this.begin_timestamp = begin_timestamp;
-	}
+    public void setBeginTimestamp(Long begin_timestamp) {
+        this.begin_timestamp = begin_timestamp;
+    }
 
-	public Long getEnd_timestamp() {
-		return end_timestamp;
-	}
+    public String getEndTimestamp() {
+        return end_timestamp;
+    }
 
-	public void setEnd_timestamp(Long end_timestamp) {
-		this.end_timestamp = end_timestamp;
-	}
+    public void setEndTimestamp(String end_timestamp) {
+        this.end_timestamp = end_timestamp;
+    }
 
-	public Integer getEach_days() {
-		return each_days;
-	}
+    public String getMethod() {
+        return method;
+    }
 
-	public void setEach_days(Integer each_days) {
-		this.each_days = each_days;
-	}
+    public void setMethod(String method) {
+        this.method = method;
+    }
 
-	public Boolean getMon() {
-		return mon;
-	}
+    public String getDays() {
+        return days;
+    }
 
-	public void setMon(Boolean mon) {
-		this.mon = mon;
-	}
+    public void setDays(String days) {
+        this.days = days;
+    }
 
-	public Boolean getTue() {
-		return tue;
-	}
+    public String getDosage() {
+        return dosage;
+    }
 
-	public void setTue(Boolean tue) {
-		this.tue = tue;
-	}
+    public Long getLastUpdateTimestamp() {
+        return lastUpdateTimestamp;
+    }
 
-	public Boolean getWed() {
-		return wed;
-	}
+    public void setLastUpdateTimestamp(Long lastUpdateTimestamp) {
+        this.lastUpdateTimestamp = lastUpdateTimestamp;
+    }
 
-	public void setWed(Boolean wed) {
-		this.wed = wed;
-	}
 
-	public Boolean getThu() {
-		return thu;
-	}
+    public void setDosage(String dosage) {
+        this.dosage = dosage;
+    }
 
-	public void setThu(Boolean thu) {
-		this.thu = thu;
-	}
+    public Integer getStatus() {
+        return status;
+    }
 
-	public Boolean getFri() {
-		return fri;
-	}
+    public void setStatus(Integer status) {
+        this.status = status;
+    }
 
-	public void setFri(Boolean fri) {
-		this.fri = fri;
-	}
+    @Override
+    public String toString() {
+        return "Medicine{" +
+                "idmedicine=" + idmedicine +
+                ", iduser=" + iduser +
+                ", medicine='" + medicine + '\'' +
+                ", observations='" + observations + '\'' +
+                ", begin_timestamp=" + begin_timestamp +
+                ", end_timestamp='" + end_timestamp + '\'' +
+                ", method='" + method + '\'' +
+                ", days='" + days + '\'' +
+                ", dosage='" + dosage + '\'' +
+                ", status=" + status +
+                ", lastUpdateTimestamp=" + lastUpdateTimestamp +
+                '}';
+    }
 
-	public Boolean getSat() {
-		return sat;
-	}
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
 
-	public void setSat(Boolean sat) {
-		this.sat = sat;
-	}
+        Medicine medicine1 = (Medicine) o;
 
-	public Boolean getSun() {
-		return sun;
-	}
+        if (idmedicine != null ? !idmedicine.equals(medicine1.idmedicine) : medicine1.idmedicine != null)
+            return false;
+        if (iduser != null ? !iduser.equals(medicine1.iduser) : medicine1.iduser != null)
+            return false;
+        if (medicine != null ? !medicine.equals(medicine1.medicine) : medicine1.medicine != null)
+            return false;
+        if (observations != null ? !observations.equals(medicine1.observations) : medicine1.observations != null)
+            return false;
+        if (begin_timestamp != null ? !begin_timestamp.equals(medicine1.begin_timestamp) : medicine1.begin_timestamp != null)
+            return false;
+        if (end_timestamp != null ? !end_timestamp.equals(medicine1.end_timestamp) : medicine1.end_timestamp != null)
+            return false;
+        if (method != null ? !method.equals(medicine1.method) : medicine1.method != null)
+            return false;
+        if (days != null ? !days.equals(medicine1.days) : medicine1.days != null) return false;
+        if (dosage != null ? !dosage.equals(medicine1.dosage) : medicine1.dosage != null)
+            return false;
+        if (status != null ? !status.equals(medicine1.status) : medicine1.status != null)
+            return false;
+        return lastUpdateTimestamp != null ? lastUpdateTimestamp.equals(medicine1.lastUpdateTimestamp) : medicine1.lastUpdateTimestamp == null;
 
-	public void setSun(Boolean sun) {
-		this.sun = sun;
-	}
+    }
 
-	@Override
-	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + ((begin_timestamp == null) ? 0 : begin_timestamp.hashCode());
-		result = prime * result + ((each_days == null) ? 0 : each_days.hashCode());
-		result = prime * result + ((end_timestamp == null) ? 0 : end_timestamp.hashCode());
-		result = prime * result + ((fri == null) ? 0 : fri.hashCode());
-		result = prime * result + ((idmedicine == null) ? 0 : idmedicine.hashCode());
-		result = prime * result + ((iduser == null) ? 0 : iduser.hashCode());
-		result = prime * result + ((medicine == null) ? 0 : medicine.hashCode());
-		result = prime * result + ((mon == null) ? 0 : mon.hashCode());
-		result = prime * result + ((observations == null) ? 0 : observations.hashCode());
-		result = prime * result + ((sat == null) ? 0 : sat.hashCode());
-		result = prime * result + ((sun == null) ? 0 : sun.hashCode());
-		result = prime * result + ((thu == null) ? 0 : thu.hashCode());
-		result = prime * result + ((tue == null) ? 0 : tue.hashCode());
-		result = prime * result + ((wed == null) ? 0 : wed.hashCode());
-		return result;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		Medicine other = (Medicine) obj;
-		if (begin_timestamp == null) {
-			if (other.begin_timestamp != null)
-				return false;
-		} else if (!begin_timestamp.equals(other.begin_timestamp))
-			return false;
-		if (each_days == null) {
-			if (other.each_days != null)
-				return false;
-		} else if (!each_days.equals(other.each_days))
-			return false;
-		if (end_timestamp == null) {
-			if (other.end_timestamp != null)
-				return false;
-		} else if (!end_timestamp.equals(other.end_timestamp))
-			return false;
-		if (fri == null) {
-			if (other.fri != null)
-				return false;
-		} else if (!fri.equals(other.fri))
-			return false;
-		if (idmedicine == null) {
-			if (other.idmedicine != null)
-				return false;
-		} else if (!idmedicine.equals(other.idmedicine))
-			return false;
-		if (iduser == null) {
-			if (other.iduser != null)
-				return false;
-		} else if (!iduser.equals(other.iduser))
-			return false;
-		if (medicine == null) {
-			if (other.medicine != null)
-				return false;
-		} else if (!medicine.equals(other.medicine))
-			return false;
-		if (mon == null) {
-			if (other.mon != null)
-				return false;
-		} else if (!mon.equals(other.mon))
-			return false;
-		if (observations == null) {
-			if (other.observations != null)
-				return false;
-		} else if (!observations.equals(other.observations))
-			return false;
-		if (sat == null) {
-			if (other.sat != null)
-				return false;
-		} else if (!sat.equals(other.sat))
-			return false;
-		if (sun == null) {
-			if (other.sun != null)
-				return false;
-		} else if (!sun.equals(other.sun))
-			return false;
-		if (thu == null) {
-			if (other.thu != null)
-				return false;
-		} else if (!thu.equals(other.thu))
-			return false;
-		if (tue == null) {
-			if (other.tue != null)
-				return false;
-		} else if (!tue.equals(other.tue))
-			return false;
-		if (wed == null) {
-			if (other.wed != null)
-				return false;
-		} else if (!wed.equals(other.wed))
-			return false;
-		return true;
-	}
-
-	@Override
-	public String toString() {
-		return "Medicine [idmedicine=" + idmedicine + ", iduser=" + iduser + ", medicine=" + medicine
-				+ ", observations=" + observations + ", begin_timestamp=" + begin_timestamp + ", end_timestamp="
-				+ end_timestamp + ", each_days=" + each_days + ", mon=" + mon + ", tue=" + tue + ", wed=" + wed
-				+ ", thu=" + thu + ", fri=" + fri + ", sat=" + sat + ", sun=" + sun + "]";
-	}
-
+    @Override
+    public int hashCode() {
+        int result = idmedicine != null ? idmedicine.hashCode() : 0;
+        result = 31 * result + (iduser != null ? iduser.hashCode() : 0);
+        result = 31 * result + (medicine != null ? medicine.hashCode() : 0);
+        result = 31 * result + (observations != null ? observations.hashCode() : 0);
+        result = 31 * result + (begin_timestamp != null ? begin_timestamp.hashCode() : 0);
+        result = 31 * result + (end_timestamp != null ? end_timestamp.hashCode() : 0);
+        result = 31 * result + (method != null ? method.hashCode() : 0);
+        result = 31 * result + (days != null ? days.hashCode() : 0);
+        result = 31 * result + (dosage != null ? dosage.hashCode() : 0);
+        result = 31 * result + (status != null ? status.hashCode() : 0);
+        result = 31 * result + (lastUpdateTimestamp != null ? lastUpdateTimestamp.hashCode() : 0);
+        return result;
+    }
 }
