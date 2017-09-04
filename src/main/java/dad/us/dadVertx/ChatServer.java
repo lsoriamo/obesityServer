@@ -24,6 +24,7 @@ import dad.us.dadVertx.entities.chat.ChatMessageState.MessageState;
 import dad.us.dadVertx.entities.consent.Consent;
 import dad.us.dadVertx.entities.doctor.Doctor;
 import dad.us.dadVertx.entities.firebase.FirebaseEntity;
+import dad.us.dadVertx.entities.firebase.FirebaseUtils;
 import dad.us.dadVertx.entities.health.values.BloodGlucose;
 import dad.us.dadVertx.entities.health.values.BloodPressure;
 import dad.us.dadVertx.entities.health.values.Distance;
@@ -66,6 +67,7 @@ import io.vertx.ext.web.handler.BodyHandler;
 public class ChatServer extends AbstractVerticle {
 
 	private static AsyncSQLClient mySQLClient;
+	private static WatsonQuestionAnswer watsonQuestions;
 
 	@Override
 	public void start() throws Exception {
@@ -76,8 +78,8 @@ public class ChatServer extends AbstractVerticle {
 		/*
 		 * getUserFirebaseToken(-2124119833).setHandler(handler -> { if
 		 * (handler.succeeded() && handler.result() != null)
-		 * FirebaseUtils.sendMessage(handler.result().getFirebase_token(),
-		 * "Hola mundo", "Firebase"); });
+		 * FirebaseUtils.sendMessage(handler.result().getFirebase_token(), "Hola mundo",
+		 * "Firebase"); });
 		 */
 
 		Router router = Router.router(vertx);
@@ -118,6 +120,9 @@ public class ChatServer extends AbstractVerticle {
 		router.post("/api/obesity/psychology/test").handler(this::saveTestResult);
 		router.post("/api/obesity/psychology/tests").handler(this::saveTestResults);
 
+		router.get("/api/obesity/messages/received/:userId/:messageId").handler(this::markMessageAsReceived);
+		router.get("/api/obesity/messages/read/:userId/:messageId").handler(this::markMessageAsRead);
+		router.post("/api/obesity/messages/send").handler(this::postMessage);
 		router.get("/api/obesity/messages/last/:groupId").handler(this::getGroupLastMessage);
 		router.get("/api/obesity/messages/:groupId/:timestamp").handler(this::getGroupMessagesFromDate);
 		router.get("/api/obesity/messages/:groupId/:timestamp/reverse").handler(this::getGroupMessagesUntilDate);
@@ -126,9 +131,9 @@ public class ChatServer extends AbstractVerticle {
 
 		router.get("/api/obesity/groups/user/:userId").handler(this::getUserGroups);
 		router.get("/api/obesity/groups/relateduser/:userId").handler(this::getRelatedUsers);
-		router.get("/api/obesity/groups/members/:groupId").handler(this::getGroupUsers);
+		router.get("/api/obesity/groups/members/:groupId").handler(ChatServer::getGroupUsers);
 		router.get("/api/obesity/groups/unread/unpending/:userId/:groupId").handler(this::markAsReadMessages);
-		router.get("/api/obesity/groups/unread/:userId/:groupId").handler(this::getUnreadMessages);
+		router.get("/api/obesity/groups/unread/:userId/:groupId").handler(ChatServer::getUnreadMessages);
 		router.post("/api/obesity/groups/multi").handler(this::addMultiUserGroup);
 		router.post("/api/obesity/groups/single").handler(this::addSingleUserGroup);
 		router.delete("/api/obesity/groups").handler(this::deleteUserFromGroup);
@@ -156,56 +161,7 @@ public class ChatServer extends AbstractVerticle {
 
 		vertx.createHttpServer().requestHandler(router::accept).listen(8081);
 
-		WatsonQuestionAnswer watsonQuestions = new WatsonQuestionAnswer("ObesityFAQ",
-				"sc6891d3ab_a39f_4133_9f8d_ea7b351ec170", "Obesity");
-		EventBus eb = vertx.eventBus();
-
-		eb.consumer("chat.to.server").handler(message -> {
-			ChatMessage jsonMessage = Json.decodeValue(message.body().toString(), ChatMessage.class);
-			try {
-				jsonMessage.setMessage(StringEscapeUtils.unescapeJava(jsonMessage.getMessage()));
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-			publishMessage(jsonMessage, message, eb);
-			getGroupUsers(jsonMessage.getGroup_id()).setHandler(new Handler<AsyncResult<List<User>>>() {
-
-				@Override
-				public void handle(AsyncResult<List<User>> event) {
-					List<User> usersOfInterest = event.result().stream()
-							.filter(usr -> usr.getIduser().equals(3) || usr.getIduser().equals(4))
-							.collect(Collectors.toList());
-					if (!usersOfInterest.isEmpty()) {
-						List<String> responses = watsonQuestions.getResponse(jsonMessage.getMessage());
-						String msg = "Lo siento, no sé responderte a esa pregunta :-(";
-						if (!responses.isEmpty()) {
-							msg = responses.get(0);
-						}
-						publishMessage(new ChatMessage(msg, 0, jsonMessage.getGroup_id(),
-								usersOfInterest.get(0).getIduser(), Calendar.getInstance().getTimeInMillis()), message,
-								eb);
-					}
-				}
-			});
-
-		});
-
-		eb.consumer("server.ping").handler(message -> {
-			message.reply(new JsonObject().put("pong", "pong"));
-			System.out.println("Ping recibido");
-		});
-
-		eb.consumer("chat.received").handler(message -> {
-			JsonObject jsonReceived = new JsonObject(message.body().toString());
-			addMessageState(jsonReceived.getInteger("message_id"), jsonReceived.getInteger("user_id"),
-					MessageState.Received.name(), Calendar.getInstance().getTimeInMillis());
-		});
-
-		eb.consumer("chat.read").handler(message -> {
-			JsonObject jsonRead = new JsonObject(message.body().toString());
-			addMessageState(jsonRead.getInteger("message_id"), jsonRead.getInteger("user_id"), MessageState.Read.name(),
-					Calendar.getInstance().getTimeInMillis());
-		});
+		watsonQuestions = new WatsonQuestionAnswer("ObesityFAQ", "sc6891d3ab_a39f_4133_9f8d_ea7b351ec170", "Obesity");
 
 		TcpEventBusBridge bridge = TcpEventBusBridge.create(vertx,
 				new BridgeOptions().addInboundPermitted(new PermittedOptions().setAddress("chat.to.server"))
@@ -218,38 +174,91 @@ public class ChatServer extends AbstractVerticle {
 		bridge.listen(7000, res -> System.out.println("Ready"));
 
 		/*
-		 * vertx.setPeriodic(10000, handler -> { eb.publish("chat.to.server",
-		 * new JsonObject( Json.encode(new
+		 * vertx.setPeriodic(10000, handler -> { eb.publish("chat.to.server", new
+		 * JsonObject( Json.encode(new
 		 * ChatMessage("Es cierto, puedo responder a estos mensajes", 0, 32, 2,
 		 * Calendar.getInstance().getTimeInMillis())))); });
 		 */
 
 	}
 
-	private void publishMessage(ChatMessage jsonMessage, Message<Object> message, EventBus eb) {
+	private void publishGroupInfo(Integer group_id, String info_message) {
+		vertx.eventBus().publish("info.to.client." + group_id, new JsonObject().put("info_message", info_message));
+	}
+
+	private void markMessageAsReceived(RoutingContext routingContext) {
+		Integer userId = new Integer(routingContext.request().getParam("userId"));
+		Integer messageId = new Integer(routingContext.request().getParam("messageId"));
+		addMessageState(messageId, userId, MessageState.Received.name(), Calendar.getInstance().getTimeInMillis())
+				.setHandler(res -> {
+					if (res.succeeded()) {
+						routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+								.end(Json.encodePrettily(res.result()));
+					} else {
+						routingContext.response().setStatusCode(401).end();
+					}
+				});
+	}
+
+	private void markMessageAsRead(RoutingContext routingContext) {
+		Integer userId = new Integer(routingContext.request().getParam("userId"));
+		Integer messageId = new Integer(routingContext.request().getParam("messageId"));
+		addMessageState(messageId, userId, MessageState.Read.name(), Calendar.getInstance().getTimeInMillis())
+				.setHandler(res -> {
+					if (res.succeeded()) {
+						routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+								.end(Json.encodePrettily(res.result()));
+					} else {
+						routingContext.response().setStatusCode(401).end();
+					}
+				});
+	}
+
+	private void postMessage(RoutingContext routingContext) {
+		ChatMessage jsonMessage = Json.decodeValue(routingContext.getBodyAsString(), ChatMessage.class);
+		try {
+			jsonMessage.setMessage(StringEscapeUtils.unescapeJava(jsonMessage.getMessage()));
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
 		saveMessageInDatabase(jsonMessage.getMessage(), jsonMessage.getGroup_id(), jsonMessage.getUser_id(),
 				jsonMessage.getTimestamp()).setHandler(res -> {
 					if (res.succeeded()) {
 						addMessageState(jsonMessage.getId_message(), jsonMessage.getUser_id(), MessageState.Sent.name(),
 								Calendar.getInstance().getTimeInMillis());
 						ChatMessage savedMessage = res.result();
-						try {
-							savedMessage.setMessage(StringEscapeUtils.escapeJava(savedMessage.getMessage()));
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
-						eb.publish("chat.to.client." + jsonMessage.getGroup_id(),
-								new JsonObject(Json.encodePrettily(savedMessage)));
-						message.reply(new JsonObject(Json.encodePrettily(savedMessage)));
+						FirebaseUtils.sendMessageToGroup(savedMessage.getGroup_id(), savedMessage.getUser_id(),
+								savedMessage);
+						routingContext.response().putHeader("content-type", "application/json; charset=utf-8")
+								.end(Json.encodePrettily(res.result()));
 					} else {
-						message.reply(new JsonObject("Error"));
+						routingContext.response().setStatusCode(401).end();
 					}
 				});
 
-	}
+		getGroupUsers(jsonMessage.getGroup_id()).setHandler(new Handler<AsyncResult<List<User>>>() {
 
-	private void publishGroupInfo(Integer group_id, String info_message) {
-		vertx.eventBus().publish("info.to.client." + group_id, new JsonObject().put("info_message", info_message));
+			@Override
+			public void handle(AsyncResult<List<User>> event) {
+
+				List<User> usersOfInterest = event.result().stream()
+						.filter(usr -> usr.getIduser().equals(3) || usr.getIduser().equals(4))
+						.collect(Collectors.toList());
+				if (!usersOfInterest.isEmpty()) {
+					List<String> responses = watsonQuestions.getResponse(jsonMessage.getMessage());
+					String msg = StringResources.getRandomWatsonNoResponse();
+					if (!responses.isEmpty()) {
+						msg = responses.get(0);
+					}
+
+					ChatMessage response = new ChatMessage(msg, 0, jsonMessage.getGroup_id(),
+							usersOfInterest.get(0).getIduser(), Calendar.getInstance().getTimeInMillis());
+					FirebaseUtils.sendMessageToGroup(jsonMessage.getGroup_id(), null, response);
+				}
+			}
+		});
+
 	}
 
 	private void getMedicalTest(RoutingContext routingContext) {
@@ -818,7 +827,7 @@ public class ChatServer extends AbstractVerticle {
 		});
 	}
 
-	private void getGroupUsers(RoutingContext routingContext) {
+	private static void getGroupUsers(RoutingContext routingContext) {
 		Integer group_id = new Integer(routingContext.request().getParam("groupId"));
 		getGroupUsers(group_id).setHandler(res -> {
 			if (res.succeeded()) {
@@ -831,7 +840,7 @@ public class ChatServer extends AbstractVerticle {
 		});
 	}
 
-	private void getUnreadMessages(RoutingContext routingContext) {
+	private static void getUnreadMessages(RoutingContext routingContext) {
 		Integer group_id = new Integer(routingContext.request().getParam("groupId"));
 		Integer user_id = new Integer(routingContext.request().getParam("userId"));
 		getUnreadMessages(user_id, group_id).setHandler(res -> {
@@ -1405,7 +1414,7 @@ public class ChatServer extends AbstractVerticle {
 		return future;
 	}
 
-	private Future<List<ChatMessage>> getUnreadMessages(Integer user_id, Integer group_id) {
+	private static Future<List<ChatMessage>> getUnreadMessages(Integer user_id, Integer group_id) {
 		Future<List<ChatMessage>> future = Future.future();
 		mySQLClient.getConnection(conn -> {
 			if (conn.succeeded()) {
@@ -1604,7 +1613,7 @@ public class ChatServer extends AbstractVerticle {
 		return future;
 	}
 
-	private Future<FirebaseEntity> getUserFirebaseToken(Integer userId) {
+	public static Future<FirebaseEntity> getUserFirebaseToken(Integer userId) {
 		Future<FirebaseEntity> future = Future.future();
 		mySQLClient.getConnection(conn -> {
 			if (conn.succeeded()) {
@@ -1632,7 +1641,7 @@ public class ChatServer extends AbstractVerticle {
 		return future;
 	}
 
-	private Future<FirebaseEntity> saveUserFirebaseToken(FirebaseEntity firebase) {
+	private static Future<FirebaseEntity> saveUserFirebaseToken(FirebaseEntity firebase) {
 		Future<FirebaseEntity> future = Future.future();
 		mySQLClient.getConnection(conn -> {
 			if (conn.succeeded()) {
@@ -2275,7 +2284,7 @@ public class ChatServer extends AbstractVerticle {
 		return future;
 	}
 
-	private Future<List<User>> getGroupUsers(Integer group_id) {
+	public static Future<List<User>> getGroupUsers(Integer group_id) {
 		Future<List<User>> future = Future.future();
 		mySQLClient.getConnection(conn -> {
 			if (conn.succeeded()) {
@@ -2353,12 +2362,11 @@ public class ChatServer extends AbstractVerticle {
 		mySQLClient.getConnection(conn -> {
 			if (conn.succeeded()) {
 				try {
-					conn.result().queryWithParams(
-							"SELECT * FROM retoobesidad.users AS users " + " WHERE users.iduser IN ("
-									+ "   SELECT DISTINCT groups.user_id FROM ("
-									+ "     SELECT members2.group_id FROM retoobesidad.chat_group_members AS members2"
-									+ "     WHERE members2.user_id = ?) AS user_groups"
-									+ " INNER JOIN retoobesidad.chat_group_members AS groups ON user_groups.group_id = groups.group_id)",
+					conn.result().queryWithParams("SELECT * FROM retoobesidad.users AS users "
+							+ " WHERE users.iduser IN (" + "   SELECT DISTINCT groups.user_id FROM ("
+							+ "     SELECT members2.group_id FROM retoobesidad.chat_group_members AS members2"
+							+ "     WHERE members2.user_id = ?) AS user_groups"
+							+ " INNER JOIN retoobesidad.chat_group_members AS groups ON user_groups.group_id = groups.group_id)",
 							new JsonArray().add(user_id), res -> {
 								conn.result().close();
 								if (res.succeeded()) {
@@ -2434,7 +2442,7 @@ public class ChatServer extends AbstractVerticle {
 		return future;
 	}
 
-	private Future<User> getUserById(Integer user_id) {
+	private static Future<User> getUserById(Integer user_id) {
 		Future<User> future = Future.future();
 		mySQLClient.getConnection(conn -> {
 			if (conn.succeeded()) {
