@@ -10,7 +10,7 @@ public class MedicalTestEntity {
 	private Integer idMedicalTest;
 
 	@JsonProperty("iduser")
-	private Integer iduser;
+	private Long iduser;
 
 	@JsonProperty("prescriber")
 	private Integer prescriber;
@@ -56,7 +56,7 @@ public class MedicalTestEntity {
 
 	@JsonCreator
 	public MedicalTestEntity(@JsonProperty("idMedicalTest") Integer idMedicalTest,
-			@JsonProperty("iduser") Integer iduser, @JsonProperty("prescriber") Integer prescriber,
+			@JsonProperty("iduser") Long iduser, @JsonProperty("prescriber") Integer prescriber,
 			@JsonProperty("prescriberComment") String prescriberComment,
 			@JsonProperty("lastUpdateTimestamp") Long lastUpdateTimestamp, @JsonProperty("name") String name,
 			@JsonProperty("description") String description, @JsonProperty("timestamp") Long timestamp,
@@ -107,11 +107,11 @@ public class MedicalTestEntity {
 		this.idMedicalTest = idMedicalTest;
 	}
 
-	public Integer getIduser() {
+	public Long getIduser() {
 		return iduser;
 	}
 
-	public void setIduser(Integer iduser) {
+	public void setIduser(Long iduser) {
 		this.iduser = iduser;
 	}
 

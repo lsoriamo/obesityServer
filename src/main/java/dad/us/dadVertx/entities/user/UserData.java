@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class UserData {
 
     private Integer iduser_data;
-    private Integer user_id;
+    private Long user_id;
     private Long nacimiento;
     private Integer altura;
     private Integer peso;
@@ -30,7 +30,7 @@ public class UserData {
     public UserData() {
         super();
         this.iduser_data = -1;
-        this.user_id = -1;
+        this.user_id = -1L;
         this.nacimiento = 0l;
         this.altura = 0;
         this.peso = 0;
@@ -50,7 +50,7 @@ public class UserData {
         this.peso_objetivo= 0;
     }
 
-    public UserData(@JsonProperty("iduser_data") Integer iduser_data, @JsonProperty("user_id") Integer user_id,
+    public UserData(@JsonProperty("iduser_data") Integer iduser_data, @JsonProperty("user_id") Long user_id,
                     @JsonProperty("nacimiento") Long nacimiento, @JsonProperty("altura") Integer altura,
                     @JsonProperty("peso") Integer peso, @JsonProperty("hipertension") Boolean hipertension,
                     @JsonProperty("diabetes") Boolean diabetes, @JsonProperty("apnea") Boolean apnea, @JsonProperty("lesion_articular") Boolean lesion_articular,
@@ -97,11 +97,11 @@ public class UserData {
         this.iduser_data = iduser_data;
     }
 
-    public Integer getUser_id() {
+    public Long getUser_id() {
         return user_id;
     }
 
-    public void setUser_id(Integer user_id) {
+    public void setUser_id(Long user_id) {
         this.user_id = user_id;
     }
 

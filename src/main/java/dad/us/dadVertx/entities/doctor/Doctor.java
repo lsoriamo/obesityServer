@@ -8,7 +8,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class Doctor {
 
 	@JsonProperty("idDoctor")
-	private Integer idDoctor;
+	private Long idDoctor;
 
 	@JsonProperty("name")
 	private String name;
@@ -20,7 +20,7 @@ public class Doctor {
 	private Integer specialty;
 
 	@JsonCreator
-	public Doctor(@JsonProperty("idDoctor") Integer idDoctor, @JsonProperty("name") String name,
+	public Doctor(@JsonProperty("idDoctor") Long idDoctor, @JsonProperty("name") String name,
 			@JsonProperty("surname") String surname, @JsonProperty("specialty") Integer specialty) {
 		this.idDoctor = idDoctor;
 		this.name = name;
@@ -28,11 +28,11 @@ public class Doctor {
 		this.specialty = specialty;
 	}
 
-	public Integer getIdDoctor() {
+	public Long getIdDoctor() {
 		return idDoctor;
 	}
 
-	public void setIdDoctor(Integer idDoctor) {
+	public void setIdDoctor(Long idDoctor) {
 		this.idDoctor = idDoctor;
 	}
 

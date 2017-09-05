@@ -7,7 +7,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class FirebaseEntity {
 	@JsonProperty("iduser")
-	private Integer iduser;
+	private Long iduser;
 
 	@JsonProperty("firebase_token")
 	private String firebase_token;
@@ -16,7 +16,7 @@ public class FirebaseEntity {
 	private Long timestamp;
 
 	@JsonCreator
-    public FirebaseEntity(@JsonProperty("iduser") Integer iduser,
+    public FirebaseEntity(@JsonProperty("iduser") Long iduser,
     		@JsonProperty("firebase_token") String firebase_token,
     		@JsonProperty("timestamp") Long timestamp){
 		this.iduser = iduser;
@@ -24,11 +24,11 @@ public class FirebaseEntity {
 		this.timestamp = timestamp;
 	}
 	
-	public Integer getIduser() {
+	public Long getIduser() {
 		return iduser;
 	}
 
-	public void setIduser(Integer iduser) {
+	public void setIduser(Long iduser) {
 		this.iduser = iduser;
 	}
 

@@ -39,7 +39,7 @@ public class Consent {
 			@JsonProperty("muestras_investigacion") Boolean muestras_investigacion,
 			@JsonProperty("imagenes") Boolean imagenes, @JsonProperty("tipo_intervencion") Integer tipo_intervencion,
 			@JsonProperty("medical_team") List<User> medical_team, @JsonProperty("nombre") String nombre,
-			@JsonProperty("apellidos") String apellidos, @JsonProperty("dni") String dni,
+			@JsonProperty("apellidos") String apellidos, @JsonProperty("DNI") String dni,
 			@JsonProperty("udid") String udid) {
 		super();
 		this.idconsent = idconsent;

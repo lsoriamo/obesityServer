@@ -15,10 +15,10 @@ public class Aim {
     Long timestamp;
     Float value;
     Integer type;
-    Integer iduser;
+    Long iduser;
 
     @JsonCreator
-    public Aim(@JsonProperty("iduser") Integer iduser, @JsonProperty("idAim") Integer idAim,
+    public Aim(@JsonProperty("iduser") Long iduser, @JsonProperty("idAim") Integer idAim,
                @JsonProperty("timestamp") Long timestamp, @JsonProperty("value") Float value,
                @JsonProperty("type") Integer type) {
         this.idAim = idAim;
@@ -52,11 +52,11 @@ public class Aim {
         this.value = value;
     }
 
-    public Integer getIduser() {
+    public Long getIduser() {
         return iduser;
     }
 
-    public void setIduser(Integer iduser) {
+    public void setIduser(Long iduser) {
         this.iduser = iduser;
     }
 

@@ -8,11 +8,11 @@ public class ChatServerStrings {
 		return user.getNickname() + " dejó la conversación";
 	}
 
-	public static String getGroupCreatedBy(User user) {
-		return "Grupo creado por " + user.getNickname();
+	public static String getGroupCreatedBy(String user) {
+		return "Grupo creado por " + user;
 	}
 
-	public static String getSingleUserGroupDescription(User user, User friend) {
-		return "Conversación entre " + user.getNickname() + " y " + friend.getNickname();
+	public static String getSingleUserGroupDescription(String user, String friend) {
+		return "Conversación entre " + user + " y " + friend;
 	}
 }
