@@ -7,7 +7,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class User {
 
-	private Integer iduser;
+	private Long iduser;
 	private String name;
 	private String surname;
 	private String nickname;
@@ -15,7 +15,7 @@ public class User {
 	private String image;
 
 	@JsonCreator
-	public User(@JsonProperty("iduser") Integer iduser, @JsonProperty("name") String name,
+	public User(@JsonProperty("iduser") Long iduser, @JsonProperty("name") String name,
 			@JsonProperty("surname") String surname, @JsonProperty("nickname") String nickname,
 			@JsonProperty("email") String email, @JsonProperty("image") String image) {
 		this.iduser = iduser;
@@ -26,11 +26,11 @@ public class User {
 		this.image = image;
 	}
 
-	public Integer getIduser() {
+	public Long getIduser() {
 		return iduser;
 	}
 
-	public void setIduser(Integer iduser) {
+	public void setIduser(Long iduser) {
 		this.iduser = iduser;
 	}
 

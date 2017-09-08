@@ -14,14 +14,16 @@ public class ChatGroup {
 	private String name;
 	private Long creation_date;
 	private String description;
+	private String dialogPhoto;
 
 	@JsonCreator
-	public ChatGroup(@JsonProperty("idchat_group") Integer idchat_group, @JsonProperty("name") String name,
-			@JsonProperty("creation_date") Long creation_date, @JsonProperty("description") String description) {
-		this.idchat_group = idchat_group;
-		this.name = name;
-		this.creation_date = creation_date;
-		this.description = description;
+    public ChatGroup(@JsonProperty("idchat_group") Integer idchat_group, @JsonProperty("name") String name,
+                     @JsonProperty("creation_date") Long creation_date, @JsonProperty("description") String description, @JsonProperty("dialogPhoto") String dialogPhoto) {
+        this.idchat_group = idchat_group;
+        this.name = name;
+        this.creation_date = creation_date;
+        this.description = description;
+        this.dialogPhoto = dialogPhoto;
 	}
 
 	public void setCreationDateFromDate(Date date) {
@@ -34,6 +36,14 @@ public class ChatGroup {
 		String dateString = formatter.format(new Date(creation_date));
 		return dateString;
 	}
+	
+	public void setDialogPhoto(String dialogPhoto) {
+        this.dialogPhoto = dialogPhoto;
+    }
+
+    public String getDialogPhoto() {
+        return this.dialogPhoto;
+    }
 
 	public Integer getIdchat_group() {
 		return idchat_group;

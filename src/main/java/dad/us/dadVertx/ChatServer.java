@@ -67,7 +67,7 @@ public class ChatServer extends AbstractVerticle {
 	public void start() throws Exception {
 		JsonObject config = new JsonObject().put("host", "localhost").put("username", "root").put("password", "root")
 				.put("database", "retoobesidad").put("port", 3306).put("maxPoolSize", 100);
-		mySQLClient = MySQLClient.createShared(vertx, config);
+		mySQLClient = MySQLClient.createNonShared(vertx, config);
 
 		Router router = Router.router(vertx);
 
@@ -89,6 +89,8 @@ public class ChatServer extends AbstractVerticle {
 		router.get("/api/obesity/user/login/:userId").handler(this::getUser);
 		router.post("/api/obesity/user/login").handler(this::saveUser);
 
+		router.get("/api/obesity/image/:imagePath").handler(this::getImage);
+
 		router.get("/api/obesity/user/data/:userId").handler(this::getUserData);
 		router.post("/api/obesity/user/data").handler(this::saveUserData);
 		router.delete("/api/obesity/user/data/:userId").handler(this::deleteUserData);
@@ -108,13 +110,13 @@ public class ChatServer extends AbstractVerticle {
 
 		router.get("/api/obesity/psychology/test/results/:userId").handler(this::getTestResults);
 		router.get("/api/obesity/psychology/test/:userId").handler(this::getPsychologyTest);
-		// TODO: no testada
 		router.post("/api/obesity/psychology/test").handler(this::saveTestResult);
-		// TODO: no testada
 		router.post("/api/obesity/psychology/tests").handler(this::saveTestResults);
 
 		router.get("/api/obesity/messages/received/:userId/:messageId").handler(this::markMessageAsReceived);
 		router.get("/api/obesity/messages/read/:userId/:messageId").handler(this::markMessageAsRead);
+		router.post("/api/obesity/messages/read/:userId").handler(this::markMessagesAsRead);
+		router.post("/api/obesity/messages/received/:userId").handler(this::markMessagesAsReceived);
 		router.post("/api/obesity/messages/send").handler(this::postMessage);
 		router.get("/api/obesity/messages/last/:groupId").handler(this::getGroupLastMessage);
 		router.get("/api/obesity/messages/unread/:userId/:groupId").handler(this::getUnreadMessages);
@@ -153,12 +155,10 @@ public class ChatServer extends AbstractVerticle {
 
 		watsonQuestions = new WatsonQuestionAnswer("ObesityFAQ", "sc6891d3ab_a39f_4133_9f8d_ea7b351ec170", "Obesity");
 
-		/*
-		 * vertx.setPeriodic(10000, handler -> { eb.publish("chat.to.server",
-		 * new JsonObject( Json.encode(new
-		 * ChatMessage("Es cierto, puedo responder a estos mensajes", 0, 32, 2,
-		 * Calendar.getInstance().getTimeInMillis())))); });
-		 */
+		/*vertx.setPeriodic(3000, handler -> {
+			FirebaseUtils.sendMessageToGroup(54, "group_message", Json.encodePrettily(new ChatMessage("Hola mundo",
+					(int) Calendar.getInstance().getTimeInMillis(), 54, 4L, Calendar.getInstance().getTimeInMillis())));
+		})*/;
 
 	}
 
@@ -180,6 +180,53 @@ public class ChatServer extends AbstractVerticle {
 				});
 	}
 
+	private void markMessagesAsRead(RoutingContext routingContext) {
+		Long userId = new Long(routingContext.request().getParam("userId"));
+		Integer[] messages = Json.decodeValue(routingContext.getBodyAsString(), Integer[].class);
+
+		if (messages.length > 0) {
+			addMessageState(userId, Arrays.asList(messages), MessageState.Read.name(),
+					Calendar.getInstance().getTimeInMillis()).setHandler(res -> {
+						if (res.succeeded()) {
+							routingContext.response()
+									.putHeader("content-type", StringResources.restResponseHeaderContentType)
+									.end(Json.encodePrettily(res.result()));
+						} else {
+							routingContext.response()
+									.putHeader("content-type", StringResources.restResponseHeaderContentType)
+									.setStatusCode(500)
+									.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						}
+					});
+		} else {
+			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
+					.end(Json.encodePrettily(new ArrayList<>()));
+		}
+	}
+
+	private void markMessagesAsReceived(RoutingContext routingContext) {
+		Integer[] messages = Json.decodeValue(routingContext.getBodyAsString(), Integer[].class);
+		Long userId = new Long(routingContext.request().getParam("userId"));
+		if (messages.length > 0) {
+			addMessageState(userId, Arrays.asList(messages), MessageState.Received.name(),
+					Calendar.getInstance().getTimeInMillis()).setHandler(res -> {
+						if (res.succeeded()) {
+							routingContext.response()
+									.putHeader("content-type", StringResources.restResponseHeaderContentType)
+									.end(Json.encodePrettily(res.result()));
+						} else {
+							routingContext.response()
+									.putHeader("content-type", StringResources.restResponseHeaderContentType)
+									.setStatusCode(500)
+									.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						}
+					});
+		} else {
+			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
+					.end(Json.encodePrettily(new ArrayList<>()));
+		}
+	}
+
 	private void markMessageAsRead(RoutingContext routingContext) {
 		Long userId = new Long(routingContext.request().getParam("userId"));
 		Integer messageId = new Integer(routingContext.request().getParam("messageId"));
@@ -199,45 +246,69 @@ public class ChatServer extends AbstractVerticle {
 	}
 
 	private void postMessage(RoutingContext routingContext) {
-		ChatMessage message = Json.decodeValue(routingContext.getBodyAsString(), ChatMessage.class);
-		try {
-			message.setMessage(StringEscapeUtils.unescapeJava(message.getMessage()));
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+		ChatMessage[] messages = Json.decodeValue(routingContext.getBodyAsString(), ChatMessage[].class);
 
-		saveMessageInDatabase(message).setHandler(res -> {
+		Arrays.asList(messages).stream().forEach(message -> {
+			try {
+				message.setMessage(StringEscapeUtils.unescapeJava(message.getMessage()));
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+		});
+
+		saveMessagesInDatabase(Arrays.asList(messages)).setHandler(res -> {
 			if (res.succeeded() && res.result() != null) {
-				addMessageState(message.getId_message(), message.getUser_id(), MessageState.Sent.name(),
-						Calendar.getInstance().getTimeInMillis());
-				ChatMessage savedMessage = res.result();
-				FirebaseUtils.sendMessageToGroup(savedMessage.getGroup_id(), savedMessage.getUser_id(), savedMessage);
-				getGroupUsers(savedMessage.getGroup_id()).setHandler(new Handler<AsyncResult<List<User>>>() {
-
+				new Handler<Integer>() {
 					@Override
-					public void handle(AsyncResult<List<User>> event) {
+					public void handle(Integer idx) {
+						if (idx < res.result().size()) {
+							final Handler<Integer> self = this;
+							ChatMessage msg = res.result().get(idx);
+							addMessageState(msg.getId_message(), msg.getUser_id(), MessageState.Sent.name(),
+									Calendar.getInstance().getTimeInMillis()).setHandler(state -> {
+										getGroupUsers(msg.getGroup_id()).setHandler(usersOfInt -> {
+											if (usersOfInt.succeeded()) {
+												FirebaseUtils.sendMessageToGroup(msg.getGroup_id(), usersOfInt.result(),
+														msg.getUser_id(), msg).setHandler(send -> {
 
-						List<User> usersOfInterest = event.result().stream()
-								.filter(usr -> usr.getIduser().equals(StringResources.virtualSurgeryId)
-										|| usr.getIduser().equals(StringResources.virtualEndocrineId))
-								.collect(Collectors.toList());
-						if (!usersOfInterest.isEmpty()) {
-							List<String> responses = watsonQuestions.getResponse(savedMessage.getMessage());
-							String msg = StringResources.getRandomWatsonNoResponse();
-							if (!responses.isEmpty()) {
-								msg = responses.get(0);
-							}
+															List<User> usersOfInterest = usersOfInt.result().stream()
+																	.filter(usr -> usr.getIduser()
+																			.equals(StringResources.virtualSurgeryId)
+																			|| usr.getIduser()
+																					.equals(StringResources.virtualEndocrineId))
+																	.collect(Collectors.toList());
+															if (!usersOfInterest.isEmpty()) {
+																List<String> responses = watsonQuestions
+																		.getResponse(msg.getMessage());
+																String watsonResponse = StringResources
+																		.getRandomWatsonNoResponse();
+																if (!responses.isEmpty()) {
+																	watsonResponse = responses.get(0);
+																}
 
-							ChatMessage response = new ChatMessage(msg, 0, savedMessage.getGroup_id(),
-									usersOfInterest.get(0).getIduser(), Calendar.getInstance().getTimeInMillis());
-							FirebaseUtils.sendMessageToGroup(savedMessage.getGroup_id(), response.getUser_id(),
-									response);
+																ChatMessage response = new ChatMessage(watsonResponse,
+																		0, msg.getGroup_id(),
+																		usersOfInterest.get(0).getIduser(),
+																		Calendar.getInstance().getTimeInMillis());
+																saveMessagesInDatabase(Arrays.asList(response))
+																		.setHandler(saveResponse -> {
+																			FirebaseUtils.sendMessageToGroup(
+																					msg.getGroup_id(),
+																					usersOfInt.result(),
+																					response.getUser_id(), response);
+																		});
+															}
+															self.handle(idx + 1);
+														});
+											}
+										});
+									});
 						}
-						routingContext.response()
-								.putHeader("content-type", StringResources.restResponseHeaderContentType)
-								.end(Json.encodePrettily(res.result()));
 					}
-				});
+				}.handle(0);
+
+				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
+						.end(Json.encodePrettily(res.result()));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
 						.setStatusCode(500)
@@ -377,17 +448,19 @@ public class ChatServer extends AbstractVerticle {
 		try {
 			JsonObject body = new JsonObject(routingContext.getBodyAsString());
 			Long user_id = body.getLong("user_id");
-			createGroup(user_id, "", ChatServerStrings.getGroupCreatedBy(user_id.toString())).setHandler(res -> {
-				if (res.succeeded()) {
-					routingContext.response().setStatusCode(201)
-							.putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.end(Json.encodePrettily(res.result()));
-				} else {
-					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.setStatusCode(500)
-							.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
-				}
-			});
+			createGroup(user_id, "", ChatServerStrings.getGroupCreatedBy(user_id.toString()),
+					"images/chat_group_icon.png").setHandler(res -> {
+						if (res.succeeded()) {
+							routingContext.response().setStatusCode(201)
+									.putHeader("content-type", StringResources.restResponseHeaderContentType)
+									.end(Json.encodePrettily(res.result()));
+						} else {
+							routingContext.response()
+									.putHeader("content-type", StringResources.restResponseHeaderContentType)
+									.setStatusCode(500)
+									.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						}
+					});
 		} catch (Exception e) {
 			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
 					.setStatusCode(500).end(new JsonObject().put("error", e.getMessage()).encodePrettily());
@@ -400,33 +473,32 @@ public class ChatServer extends AbstractVerticle {
 			Long user_id = body.getLong("user_id");
 			Long friend_id = body.getLong("friend_id");
 			createGroup(user_id, "",
-					ChatServerStrings.getSingleUserGroupDescription(user_id.toString(), friend_id.toString()))
-							.setHandler(res -> {
-								if (res.succeeded()) {
-									addUserToGroup(friend_id, res.result().getIdchat_group(),
-											Calendar.getInstance().getTimeInMillis()).setHandler(result -> {
-												if (result.succeeded()) {
-													routingContext.response().setStatusCode(201)
-															.putHeader("content-type",
-																	StringResources.restResponseHeaderContentType)
-															.end(Json.encodePrettily(res.result()));
-												} else {
-													routingContext.response()
-															.putHeader("content-type",
-																	StringResources.restResponseHeaderContentType)
-															.setStatusCode(500)
-															.end(new JsonObject()
-																	.put("error", result.cause().getMessage())
-																	.encodePrettily());
-												}
-											});
-								} else {
-									routingContext.response()
-											.putHeader("content-type", StringResources.restResponseHeaderContentType)
-											.setStatusCode(500).end(new JsonObject()
-													.put("error", res.cause().getMessage()).encodePrettily());
-								}
-							});
+					ChatServerStrings.getSingleUserGroupDescription(user_id.toString(), friend_id.toString()),
+					"images/chat_group_icon.png").setHandler(res -> {
+						if (res.succeeded()) {
+							addUserToGroup(friend_id, res.result().getIdchat_group(),
+									Calendar.getInstance().getTimeInMillis()).setHandler(result -> {
+										if (result.succeeded()) {
+											routingContext.response().setStatusCode(201)
+													.putHeader("content-type",
+															StringResources.restResponseHeaderContentType)
+													.end(Json.encodePrettily(res.result()));
+										} else {
+											routingContext.response()
+													.putHeader("content-type",
+															StringResources.restResponseHeaderContentType)
+													.setStatusCode(500)
+													.end(new JsonObject().put("error", result.cause().getMessage())
+															.encodePrettily());
+										}
+									});
+						} else {
+							routingContext.response()
+									.putHeader("content-type", StringResources.restResponseHeaderContentType)
+									.setStatusCode(500)
+									.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						}
+					});
 		} catch (Exception e) {
 			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
 					.setStatusCode(500).end(new JsonObject().put("error", e.getMessage()).encodePrettily());
@@ -673,9 +745,31 @@ public class ChatServer extends AbstractVerticle {
 		}
 	}
 
+	private void getImage(RoutingContext routingContext) {
+		String imagePath = routingContext.request().getParam("imagePath");
+		if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
+			BufferedImage image = null;
+			try {
+				URL url = new URL(imagePath);
+				image = ImageIO.read(url);
+				String extension = url.toString().substring(url.toString().lastIndexOf(".") + 1);
+				File file = File.createTempFile("temp-file-name" + Calendar.getInstance().getTimeInMillis(),
+						"." + extension);
+				ImageIO.write(image, extension, file);
+				routingContext.response().sendFile(file.getPath());
+			} catch (IOException e) {
+				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
+						.setStatusCode(500).end(new JsonObject().put("error", e.getMessage()).encodePrettily());
+			}
+		} else {
+			routingContext.request().response().sendFile(imagePath);
+		}
+	}
+
 	private void getUserImage(RoutingContext routingContext) {
 		Long userId = new Long(routingContext.request().getParam("userId"));
 		getUser(userId).setHandler(event -> {
+
 			if (event.succeeded()) {
 				User user = event.result();
 				if (user.getImage().startsWith("http://") || user.getImage().startsWith("https://")) {
@@ -721,15 +815,26 @@ public class ChatServer extends AbstractVerticle {
 							if (res.succeeded()) {
 								saveUserImage(userId, name).setHandler(event -> {
 									if (event.succeeded() && event.result() != null) {
-										routingContext.response()
-												.putHeader("content-type",
-														StringResources.restResponseHeaderContentType)
-												.end("{\"filename\":\"" + name + "\"}");
+										getUser(userId).setHandler(handler -> {
+											if (handler.succeeded()) {
+												routingContext.response()
+														.putHeader("content-type",
+																StringResources.restResponseHeaderContentType)
+														.end(Json.encodePrettily(handler.result()));
+											} else {
+												routingContext.response()
+														.putHeader("content-type",
+																StringResources.restResponseHeaderContentType)
+														.setStatusCode(500)
+														.end(new JsonObject().put("error", handler.cause().getMessage())
+																.encodePrettily());
+											}
+										});
 									} else {
 										routingContext.response()
 												.putHeader("content-type",
 														StringResources.restResponseHeaderContentType)
-												.setStatusCode(401).end(event.cause().getMessage());
+												.setStatusCode(500).end(event.cause().getMessage());
 									}
 								});
 
@@ -1208,14 +1313,18 @@ public class ChatServer extends AbstractVerticle {
 					conn.result().queryWithParams(select, new JsonArray().add(userId), res -> {
 						conn.result().close();
 						if (res.succeeded()) {
-							JsonObject consent_user = res.result().getRows().get(0);
-							JsonObject consent_clean = res.result().getRows().get(0);
-							consent_clean.remove("user_id");
-							consent_clean.remove("medical_team");
-							Consent consent = Json.decodeValue(consent_clean.encode(), Consent.class);
-							User user = Json.decodeValue(consent_user.encode(), User.class);
-							consent.setUser_id(user);
-							future.complete(consent);
+							if (res.result().getNumRows() > 0) {
+								JsonObject consent_user = res.result().getRows().get(0);
+								JsonObject consent_clean = res.result().getRows().get(0);
+								consent_clean.remove("user_id");
+								consent_clean.remove("medical_team");
+								Consent consent = Json.decodeValue(consent_clean.encode(), Consent.class);
+								User user = Json.decodeValue(consent_user.encode(), User.class);
+								consent.setUser_id(user);
+								future.complete(consent);
+							} else {
+								future.complete(null);
+							}
 						} else {
 							future.fail(res.cause() != null ? res.cause().getMessage() : "");
 						}
@@ -1294,28 +1403,34 @@ public class ChatServer extends AbstractVerticle {
 		return future;
 	}
 
-	private Future<ChatMessage> saveMessageInDatabase(ChatMessage message) {
-		Future<ChatMessage> future = Future.future();
+	private Future<List<ChatMessage>> saveMessagesInDatabase(List<ChatMessage> messages) {
+		Future<List<ChatMessage>> future = Future.future();
 		mySQLClient.getConnection(conn -> {
 			if (conn.succeeded()) {
-				try {
-					conn.result().updateWithParams(
-							"INSERT INTO retoobesidad.chat_group_messages (message,group_id,user_id,timestamp) VALUES (?,?,?,?)",
-							new JsonArray().add(message.getMessage()).add(message.getGroup_id())
-									.add(message.getUser_id()).add(message.getTimestamp()),
-							res -> {
-								conn.result().close();
-								if (res.succeeded()) {
-									message.setId_message(res.result().getKeys().getInteger(0));
-									future.complete(message);
-								} else {
-									future.fail(res.cause());
-								}
-							});
-				} catch (Exception e) {
-					future.fail(e.getCause() != null ? e.getCause().getMessage() : "");
-					conn.result().close();
-				}
+				List<ChatMessage> results = new ArrayList<>();
+				new Handler<Integer>() {
+					@Override
+					public void handle(Integer idx) {
+						if (idx < messages.size()) {
+							final Handler<Integer> self = this;
+							ChatMessage message = messages.get(idx);
+							conn.result().updateWithParams(
+									"INSERT INTO retoobesidad.chat_group_messages (message,group_id,user_id,timestamp) VALUES (?,?,?,?)",
+									new JsonArray().add(message.getMessage()).add(message.getGroup_id())
+											.add(message.getUser_id()).add(message.getTimestamp()),
+									res2 -> {
+										if (res2.succeeded()) {
+											message.setId_message(res2.result().getKeys().getInteger(0));
+											results.add(message);
+										}
+										self.handle(idx + 1);
+									});
+						} else {
+							conn.result().close();
+							future.complete(results);
+						}
+					}
+				}.handle(0);
 			} else {
 				future.fail(conn.cause() != null ? conn.cause().getMessage() : "");
 			}
@@ -1416,8 +1531,7 @@ public class ChatServer extends AbstractVerticle {
 		return future;
 	}
 
-	private Future<ChatMessageState> addMessageState(Integer message_id, Long user_id, String state,
-			Long timestamp) {
+	private Future<ChatMessageState> addMessageState(Integer message_id, Long user_id, String state, Long timestamp) {
 		Future<ChatMessageState> future = Future.future();
 		mySQLClient.getConnection(conn -> {
 			if (conn.succeeded()) {
@@ -1437,6 +1551,39 @@ public class ChatServer extends AbstractVerticle {
 					future.fail(e.getCause() != null ? e.getCause().getMessage() : "");
 					conn.result().close();
 				}
+			} else {
+				future.fail(conn.cause() != null ? conn.cause().getMessage() : "");
+			}
+		});
+
+		return future;
+	}
+
+	private Future<List<Integer>> addMessageState(Long userId, List<Integer> messages, String state, Long timestamp) {
+		Future<List<Integer>> future = Future.future();
+		mySQLClient.getConnection(conn -> {
+			if (conn.succeeded()) {
+				List<Integer> responses = new ArrayList<>();
+				new Handler<Integer>() {
+					@Override
+					public void handle(Integer idx) {
+						if (idx < messages.size()) {
+							final Handler<Integer> self = this;
+							Integer message = messages.get(idx);
+							conn.result().updateWithParams(
+									"INSERT INTO retoobesidad.chat_message_state (message_id, user_id, state, timestamp) VALUES (?,?,?,?);",
+									new JsonArray().add(message).add(userId).add(state).add(timestamp), res -> {
+										if (res.succeeded()) {
+											responses.add(message);
+										}
+										self.handle(idx + 1);
+									});
+						} else {
+							conn.result().close();
+							future.complete(responses);
+						}
+					}
+				}.handle(0);
 			} else {
 				future.fail(conn.cause() != null ? conn.cause().getMessage() : "");
 			}
@@ -1641,7 +1788,8 @@ public class ChatServer extends AbstractVerticle {
 								conn.result().close();
 								if (res2.succeeded() && res2.result().getUpdated() == 1) {
 									createGroup(user.getIduser(), StringResources.virtualSurgeryName,
-											StringResources.virtualSurgeryChatDescription)
+											StringResources.virtualSurgeryChatDescription,
+											"https://www.iconexperience.com/_img/v_collection_png/512x512/shadow/surgeon.png")
 													.setHandler(new Handler<AsyncResult<ChatGroup>>() {
 
 														@Override
@@ -1652,7 +1800,8 @@ public class ChatServer extends AbstractVerticle {
 														}
 													});
 									createGroup(user.getIduser(), StringResources.virtualEndocrineName,
-											StringResources.virtualEndocrineChatDescription)
+											StringResources.virtualEndocrineChatDescription,
+											"http://icons.iconarchive.com/icons/icons-land/vista-people/128/Medical-Nurse-Male-Light-icon.png")
 													.setHandler(new Handler<AsyncResult<ChatGroup>>() {
 
 														@Override
@@ -2098,22 +2247,23 @@ public class ChatServer extends AbstractVerticle {
 		return future;
 	}
 
-	private Future<ChatGroup> createGroup(Long id_user, String name, String description) {
+	private Future<ChatGroup> createGroup(Long id_user, String name, String description, String image) {
 		Future<ChatGroup> future = Future.future();
 		mySQLClient.getConnection(conn -> {
 			if (conn.succeeded()) {
 				try {
 					Long creation_date = Calendar.getInstance().getTimeInMillis();
 					conn.result().updateWithParams(
-							"INSERT INTO retoobesidad.chat_groups (name,creation_date,description) VALUES (?,?,?)",
-							new JsonArray().add(name).add(creation_date).add(description), res2 -> {
+							"INSERT INTO retoobesidad.chat_groups (name,creation_date,description,dialogPhoto) VALUES (?,?,?)",
+							new JsonArray().add(name).add(creation_date).add(description).add(image), res2 -> {
 								conn.result().close();
 								if (res2.succeeded() && res2.result().getKeys().size() > 0) {
 									int id_group = res2.result().getKeys().getInteger(0);
 									addUserToGroup(id_user, id_group, Calendar.getInstance().getTimeInMillis())
 											.setHandler(result -> {
 												if (result.succeeded()) {
-													ChatGroup group = new ChatGroup(id_group, "", creation_date, "");
+													ChatGroup group = new ChatGroup(id_group, "", creation_date, "",
+															"images/chat_group_icon.png");
 													future.complete(group);
 												} else {
 													future.fail(result.cause());
