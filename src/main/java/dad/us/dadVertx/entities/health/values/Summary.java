@@ -72,7 +72,8 @@ public class Summary {
         user,
         fitbit,
         googleFit,
-        grouped
+        grouped,
+        samsungHealth
     }
 
     public Long getLastUpdateTimestamp() {

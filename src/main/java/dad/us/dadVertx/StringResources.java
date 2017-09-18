@@ -20,7 +20,7 @@ public class StringResources {
 	public static String virtualEndocrineName = "Endocrino";
 	public static String virtualEndocrineChatDescription = "Conversación con el endocrino";
 	public static Long virtualEndocrineId = 4L;
-	public static Integer numMaxMessagesQuery = 300;
+	public static Integer numMaxMessagesQuery = 50;
 	public static String consentMedicalTestExtension = "jpg";
 	public static String consentMedicalTestFolder = "medical";
 	public static String consentMedicalTestPrefix = "test-";
@@ -29,6 +29,7 @@ public class StringResources {
 	public static String consentSignaturePrefix = "consent-";
 	public static String consentSignatureExtension = ".svg";
 	public static String restResponseHeaderContentType = "application/json; charset=utf-8";
+	public static String restResponseHeaderContentTypeImage = "image";
 	
 	public static Float defaultAimActiveMinutes = 50f;
 	public static Float defaultAimCaloriesOut = 1250f;

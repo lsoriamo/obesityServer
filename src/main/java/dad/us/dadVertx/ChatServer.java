@@ -1,7 +1,10 @@
 package dad.us.dadVertx;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
+import java.awt.image.WritableRaster;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -13,6 +16,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
+
+import com.google.firebase.internal.Base64;
 
 import dad.us.dadVertx.entities.activities.Aim;
 import dad.us.dadVertx.entities.appointment.Appointment;
@@ -37,6 +42,7 @@ import dad.us.dadVertx.entities.medicine.Medicine;
 import dad.us.dadVertx.entities.psychology.TestResponse;
 import dad.us.dadVertx.entities.user.User;
 import dad.us.dadVertx.entities.user.UserData;
+import dad.us.dadVertx.security.GenerateRsaKeyPair;
 import dad.us.dadVertx.watson.WatsonQuestionAnswer;
 import io.vertx.core.AbstractVerticle;
 import io.vertx.core.AsyncResult;
@@ -45,10 +51,12 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
+import io.vertx.core.file.OpenOptions;
 import io.vertx.core.impl.StringEscapeUtils;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
+import io.vertx.core.streams.Pump;
 import io.vertx.ext.asyncsql.AsyncSQLClient;
 import io.vertx.ext.asyncsql.MySQLClient;
 import io.vertx.ext.sql.SQLConnection;
@@ -65,13 +73,22 @@ public class ChatServer extends AbstractVerticle {
 
 	@Override
 	public void start() throws Exception {
-		JsonObject config = new JsonObject().put("host", "localhost").put("username", "root").put("password", "root")
+		
+		/* OJO: al hacer el despliegue en un servidor nuevo, leer esto para la excepción de key size:
+		 https://stackoverflow.com/questions/6481627/java-security-illegal-key-size-or-default-parameters
+		 PAra madeirasic*/
+		 JsonObject config = new JsonObject().put("host", "localhost").put("username", "root").put("password", "1d1nf0r!")
 				.put("database", "retoobesidad").put("port", 3306).put("maxPoolSize", 100);
+		 //Para local
+		/*JsonObject config = new JsonObject().put("host", "127:0:0:1").put("username", "root").put("password", "root")
+				.put("database", "retoobesidad").put("port", 3306).put("maxPoolSize", 100);*/
 		mySQLClient = MySQLClient.createNonShared(vertx, config);
 
 		Router router = Router.router(vertx);
 
 		router.route("/api/obesity/*").handler(BodyHandler.create());
+
+		router.get("/api/obesity/security/:userId").handler(this::getPublicKey);
 
 		router.get("/api/obesity/firebase/:userId").handler(this::getUserFirebaseToken);
 		router.post("/api/obesity/firebase").handler(this::saveUserFirebaseToken);
@@ -135,15 +152,20 @@ public class ChatServer extends AbstractVerticle {
 		router.post("/api/obesity/groups/single").handler(this::addSingleUserGroup);
 		router.delete("/api/obesity/groups").handler(this::deleteUserFromGroup);
 
-		router.get("/api/obesity/health/weight/:userId/:lastUpdateTime").handler(this::getHealthWeight);
+		router.get("/api/obesity/health/weight/:userId/:lastUpdateTime/:startTime/:endTime")
+				.handler(this::getHealthWeight);
 		router.post("/api/obesity/health/weight").handler(this::saveHealthWeight);
-		router.get("/api/obesity/health/pressure/:userId/:lastUpdateTime").handler(this::getBloodPressure);
+		router.get("/api/obesity/health/pressure/:userId/:lastUpdateTime/:startTime/:endTime")
+				.handler(this::getBloodPressure);
 		router.post("/api/obesity/health/pressure").handler(this::saveBloodPressure);
-		router.get("/api/obesity/health/glucose/:userId/:lastUpdateTime").handler(this::getBloodGlucose);
+		router.get("/api/obesity/health/glucose/:userId/:lastUpdateTime/:startTime/:endTime")
+				.handler(this::getBloodGlucose);
 		router.post("/api/obesity/health/glucose").handler(this::saveBloodGlucose);
-		router.get("/api/obesity/health/heartrate/:userId/:lastUpdateTime").handler(this::getHeartRate);
+		router.get("/api/obesity/health/heartrate/:userId/:lastUpdateTime/:startTime/:endTime")
+				.handler(this::getHeartRate);
 		router.post("/api/obesity/health/heartrate").handler(this::saveHeartRate);
-		router.get("/api/obesity/health/activitysummary/:userId/:lastUpdateTime").handler(this::getActivitySummary);
+		router.get("/api/obesity/health/activitysummary/:userId/:lastUpdateTime/:startTime/:endTime")
+				.handler(this::getActivitySummary);
 		router.post("/api/obesity/health/activitysummary/:userId").handler(this::saveActivitySummary);
 
 		router.get("/api/obesity/challenge/:userId/:lastUpdateTime").handler(this::getChallenge);
@@ -151,15 +173,35 @@ public class ChatServer extends AbstractVerticle {
 
 		router.get("/api/obesity/doctor/:userId").handler(this::getDoctor);
 
-		vertx.createHttpServer().requestHandler(router::accept).listen(8081);
+		vertx.createHttpServer().requestHandler(router::accept).listen(8080);
 
 		watsonQuestions = new WatsonQuestionAnswer("ObesityFAQ", "sc6891d3ab_a39f_4133_9f8d_ea7b351ec170", "Obesity");
 
-		/*vertx.setPeriodic(3000, handler -> {
-			FirebaseUtils.sendMessageToGroup(54, "group_message", Json.encodePrettily(new ChatMessage("Hola mundo",
-					(int) Calendar.getInstance().getTimeInMillis(), 54, 4L, Calendar.getInstance().getTimeInMillis())));
-		})*/;
+		/*
+		 * vertx.setPeriodic(3000, handler -> {
+		 * FirebaseUtils.sendMessageToGroup(54, "group_message",
+		 * Json.encodePrettily(new ChatMessage("Hola mundo", (int)
+		 * Calendar.getInstance().getTimeInMillis(), 54, 4L,
+		 * Calendar.getInstance().getTimeInMillis()))); })
+		 */;
 
+	}
+
+	private void getPublicKey(RoutingContext routingContext) {
+		Long userId = new Long(routingContext.request().getParam("userId"));
+		if (GenerateRsaKeyPair.publicKeyString.isEmpty() || GenerateRsaKeyPair.privateKeyString.isEmpty())
+			GenerateRsaKeyPair.generateSecurityKeys();
+
+		getUser(userId).setHandler(res -> {
+			if (res.succeeded() && res.result() != null) {
+				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
+						.end(GenerateRsaKeyPair.encryptMsg(GenerateRsaKeyPair.publicKeyString));
+			} else {
+				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
+			}
+		});
 	}
 
 	private void markMessageAsReceived(RoutingContext routingContext) {
@@ -170,19 +212,20 @@ public class ChatServer extends AbstractVerticle {
 					if (res.succeeded()) {
 						routingContext.response()
 								.putHeader("content-type", StringResources.restResponseHeaderContentType)
-								.end(Json.encodePrettily(res.result()));
+								.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 					} else {
 						routingContext.response()
 								.putHeader("content-type", StringResources.restResponseHeaderContentType)
-								.setStatusCode(500)
-								.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+								.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+										new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 					}
 				});
 	}
 
 	private void markMessagesAsRead(RoutingContext routingContext) {
 		Long userId = new Long(routingContext.request().getParam("userId"));
-		Integer[] messages = Json.decodeValue(routingContext.getBodyAsString(), Integer[].class);
+		Integer[] messages = Json.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()),
+				Integer[].class);
 
 		if (messages.length > 0) {
 			addMessageState(userId, Arrays.asList(messages), MessageState.Read.name(),
@@ -190,22 +233,23 @@ public class ChatServer extends AbstractVerticle {
 						if (res.succeeded()) {
 							routingContext.response()
 									.putHeader("content-type", StringResources.restResponseHeaderContentType)
-									.end(Json.encodePrettily(res.result()));
+									.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 						} else {
 							routingContext.response()
 									.putHeader("content-type", StringResources.restResponseHeaderContentType)
-									.setStatusCode(500)
-									.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+									.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+											new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 						}
 					});
 		} else {
 			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-					.end(Json.encodePrettily(new ArrayList<>()));
+					.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(new ArrayList<>())));
 		}
 	}
 
 	private void markMessagesAsReceived(RoutingContext routingContext) {
-		Integer[] messages = Json.decodeValue(routingContext.getBodyAsString(), Integer[].class);
+		Integer[] messages = Json.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()),
+				Integer[].class);
 		Long userId = new Long(routingContext.request().getParam("userId"));
 		if (messages.length > 0) {
 			addMessageState(userId, Arrays.asList(messages), MessageState.Received.name(),
@@ -213,17 +257,17 @@ public class ChatServer extends AbstractVerticle {
 						if (res.succeeded()) {
 							routingContext.response()
 									.putHeader("content-type", StringResources.restResponseHeaderContentType)
-									.end(Json.encodePrettily(res.result()));
+									.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 						} else {
 							routingContext.response()
 									.putHeader("content-type", StringResources.restResponseHeaderContentType)
-									.setStatusCode(500)
-									.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+									.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+											new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 						}
 					});
 		} else {
 			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-					.end(Json.encodePrettily(new ArrayList<>()));
+					.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(new ArrayList<>())));
 		}
 	}
 
@@ -235,21 +279,23 @@ public class ChatServer extends AbstractVerticle {
 					if (res.succeeded()) {
 						routingContext.response()
 								.putHeader("content-type", StringResources.restResponseHeaderContentType)
-								.end(Json.encodePrettily(res.result()));
+								.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 					} else {
 						routingContext.response()
 								.putHeader("content-type", StringResources.restResponseHeaderContentType)
-								.setStatusCode(500)
-								.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+								.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+										new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 					}
 				});
 	}
 
 	private void postMessage(RoutingContext routingContext) {
-		ChatMessage[] messages = Json.decodeValue(routingContext.getBodyAsString(), ChatMessage[].class);
+		ChatMessage[] messages = Json.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()),
+				ChatMessage[].class);
 
 		Arrays.asList(messages).stream().forEach(message -> {
 			try {
+				message.setTimestamp(Calendar.getInstance().getTimeInMillis());
 				message.setMessage(StringEscapeUtils.unescapeJava(message.getMessage()));
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -308,11 +354,11 @@ public class ChatServer extends AbstractVerticle {
 				}.handle(0);
 
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -326,12 +372,12 @@ public class ChatServer extends AbstractVerticle {
 						JsonArray array = new JsonArray(res.result());
 						routingContext.response()
 								.putHeader("content-type", StringResources.restResponseHeaderContentType)
-								.end(array.encodePrettily());
+								.end(GenerateRsaKeyPair.encryptMsg(array.encodePrettily()));
 					} else {
 						routingContext.response()
 								.putHeader("content-type", StringResources.restResponseHeaderContentType)
-								.setStatusCode(500)
-								.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+								.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+										new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 					}
 				});
 	}
@@ -343,11 +389,11 @@ public class ChatServer extends AbstractVerticle {
 			if (res.succeeded()) {
 				JsonArray array = new JsonArray(res.result());
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(array.encodePrettily());
+						.end(GenerateRsaKeyPair.encryptMsg(array.encodePrettily()));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -360,11 +406,11 @@ public class ChatServer extends AbstractVerticle {
 			if (res.succeeded()) {
 				JsonArray array = new JsonArray(res.result());
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(array.encodePrettily());
+						.end(GenerateRsaKeyPair.encryptMsg(array.encodePrettily()));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -374,11 +420,11 @@ public class ChatServer extends AbstractVerticle {
 		getGroupLastMessage(group_id).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -389,11 +435,11 @@ public class ChatServer extends AbstractVerticle {
 			if (res.succeeded()) {
 				JsonArray array = new JsonArray(res.result());
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(array.encodePrettily());
+						.end(GenerateRsaKeyPair.encryptMsg(array.encodePrettily()));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -404,11 +450,11 @@ public class ChatServer extends AbstractVerticle {
 			if (res.succeeded()) {
 				JsonArray array = new JsonArray(res.result());
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(array.encodePrettily());
+						.end(GenerateRsaKeyPair.encryptMsg(array.encodePrettily()));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -419,11 +465,11 @@ public class ChatServer extends AbstractVerticle {
 			if (res.succeeded()) {
 				JsonArray array = new JsonArray(res.result());
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(array.encodePrettily());
+						.end(GenerateRsaKeyPair.encryptMsg(array.encodePrettily()));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -435,41 +481,42 @@ public class ChatServer extends AbstractVerticle {
 			if (res.succeeded()) {
 				JsonArray array = new JsonArray(res.result());
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(array.encodePrettily());
+						.end(GenerateRsaKeyPair.encryptMsg(array.encodePrettily()));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
 
 	private void addMultiUserGroup(RoutingContext routingContext) {
 		try {
-			JsonObject body = new JsonObject(routingContext.getBodyAsString());
+			JsonObject body = new JsonObject(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()));
 			Long user_id = body.getLong("user_id");
 			createGroup(user_id, "", ChatServerStrings.getGroupCreatedBy(user_id.toString()),
 					"images/chat_group_icon.png").setHandler(res -> {
 						if (res.succeeded()) {
 							routingContext.response().setStatusCode(201)
 									.putHeader("content-type", StringResources.restResponseHeaderContentType)
-									.end(Json.encodePrettily(res.result()));
+									.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 						} else {
 							routingContext.response()
 									.putHeader("content-type", StringResources.restResponseHeaderContentType)
-									.setStatusCode(500)
-									.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+									.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+											new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 						}
 					});
 		} catch (Exception e) {
 			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-					.setStatusCode(500).end(new JsonObject().put("error", e.getMessage()).encodePrettily());
+					.setStatusCode(500)
+					.end(GenerateRsaKeyPair.encryptMsg(new JsonObject().put("error", e.getMessage()).encodePrettily()));
 		}
 	}
 
 	private void addSingleUserGroup(RoutingContext routingContext) {
 		try {
-			JsonObject body = new JsonObject(routingContext.getBodyAsString());
+			JsonObject body = new JsonObject(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()));
 			Long user_id = body.getLong("user_id");
 			Long friend_id = body.getLong("friend_id");
 			createGroup(user_id, "",
@@ -482,31 +529,35 @@ public class ChatServer extends AbstractVerticle {
 											routingContext.response().setStatusCode(201)
 													.putHeader("content-type",
 															StringResources.restResponseHeaderContentType)
-													.end(Json.encodePrettily(res.result()));
+													.end(GenerateRsaKeyPair
+															.encryptMsg(Json.encodePrettily(res.result())));
 										} else {
 											routingContext.response()
 													.putHeader("content-type",
 															StringResources.restResponseHeaderContentType)
-													.setStatusCode(500)
-													.end(new JsonObject().put("error", result.cause().getMessage())
-															.encodePrettily());
+													.setStatusCode(
+															500)
+													.end(GenerateRsaKeyPair.encryptMsg(
+															new JsonObject().put("error", result.cause().getMessage())
+																	.encodePrettily()));
 										}
 									});
 						} else {
 							routingContext.response()
 									.putHeader("content-type", StringResources.restResponseHeaderContentType)
-									.setStatusCode(500)
-									.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+									.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+											new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 						}
 					});
 		} catch (Exception e) {
 			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-					.setStatusCode(500).end(new JsonObject().put("error", e.getMessage()).encodePrettily());
+					.setStatusCode(500)
+					.end(GenerateRsaKeyPair.encryptMsg(new JsonObject().put("error", e.getMessage()).encodePrettily()));
 		}
 	}
 
 	private void deleteUserFromGroup(RoutingContext routingContext) {
-		JsonObject body = new JsonObject(routingContext.getBodyAsString());
+		JsonObject body = new JsonObject(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()));
 		Long user_id = body.getLong("user_id");
 		Integer group_id = body.getInteger("group_id");
 		deleteUserFromGroup(user_id, group_id).setHandler(res -> {
@@ -517,19 +568,19 @@ public class ChatServer extends AbstractVerticle {
 								ChatServerStrings.userLeftGroup(res2.result()));
 						routingContext.response()
 								.putHeader("content-type", StringResources.restResponseHeaderContentType)
-								.end(Json.encodePrettily(res.result()));
+								.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 
 					} else {
 						routingContext.response()
 								.putHeader("content-type", StringResources.restResponseHeaderContentType)
-								.setStatusCode(500)
-								.end(new JsonObject().put("error", res2.cause().getMessage()).encodePrettily());
+								.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+										new JsonObject().put("error", res2.cause().getMessage()).encodePrettily()));
 					}
 				});
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -539,25 +590,26 @@ public class ChatServer extends AbstractVerticle {
 		getUserFirebaseToken(userId).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
 
 	private void saveUserFirebaseToken(RoutingContext routingContext) {
-		FirebaseEntity firebaseToken = Json.decodeValue(routingContext.getBodyAsString(), FirebaseEntity.class);
+		FirebaseEntity firebaseToken = Json.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()),
+				FirebaseEntity.class);
 		saveUserFirebaseToken(firebaseToken).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -567,25 +619,25 @@ public class ChatServer extends AbstractVerticle {
 		getUser(userId).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
 
 	private void saveUser(RoutingContext routingContext) {
-		User user = Json.decodeValue(routingContext.getBodyAsString(), User.class);
+		User user = Json.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()), User.class);
 		saveUser(user).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -595,25 +647,26 @@ public class ChatServer extends AbstractVerticle {
 		getUserData(userId).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
 
 	private void saveUserData(RoutingContext routingContext) {
-		UserData userData = Json.decodeValue(routingContext.getBodyAsString(), UserData.class);
+		UserData userData = Json.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()),
+				UserData.class);
 		saveUserData(userData).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -623,11 +676,11 @@ public class ChatServer extends AbstractVerticle {
 		deleteUserData(userId).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -638,32 +691,33 @@ public class ChatServer extends AbstractVerticle {
 		getUserAppointment(userId, lastUpdateTime).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
 
 	private void saveUserAppointment(RoutingContext routingContext) {
-		Appointment[] weights = Json.decodeValue(routingContext.getBodyAsString(), Appointment[].class);
+		Appointment[] weights = Json.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()),
+				Appointment[].class);
 
 		if (weights.length > 0) {
 			saveUserAppointment(Arrays.asList(weights)).setHandler(res -> {
 				if (res.succeeded()) {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.end(Json.encodePrettily(res.result()));
+							.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 				} else {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.setStatusCode(500)
-							.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+							.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+									new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 				}
 			});
 		} else {
 			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-					.end(Json.encodePrettily(new ArrayList<>()));
+					.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(new ArrayList<>())));
 		}
 	}
 
@@ -672,11 +726,11 @@ public class ChatServer extends AbstractVerticle {
 		getPendingConsent(userId, true).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -686,11 +740,11 @@ public class ChatServer extends AbstractVerticle {
 		getConsentMedicalGroup(consent_id).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -717,31 +771,35 @@ public class ChatServer extends AbstractVerticle {
 										routingContext.response()
 												.putHeader("content-type",
 														StringResources.restResponseHeaderContentType)
-												.end("{\"result\":\"OK\"}");
+												.end(GenerateRsaKeyPair.encryptMsg("{\"result\":\"OK\"}"));
 									} else {
 										routingContext.response()
 												.putHeader("content-type",
 														StringResources.restResponseHeaderContentType)
-												.setStatusCode(500).end(new JsonObject()
-														.put("error", event.cause().getMessage()).encodePrettily());
+												.setStatusCode(
+														500)
+												.end(GenerateRsaKeyPair.encryptMsg(new JsonObject()
+														.put("error", event.cause().getMessage()).encodePrettily()));
 									}
 								});
 							} else {
 								routingContext.response()
 										.putHeader("content-type", StringResources.restResponseHeaderContentType)
-										.setStatusCode(500)
-										.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+										.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(new JsonObject()
+												.put("error", res.cause().getMessage()).encodePrettily()));
 							}
 						});
 					}
 				} catch (Exception e) {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.setStatusCode(500).end(new JsonObject().put("error", e.getMessage()).encodePrettily());
+							.setStatusCode(500).end(GenerateRsaKeyPair
+									.encryptMsg(new JsonObject().put("error", e.getMessage()).encodePrettily()));
 				}
 			});
 		} catch (Exception e) {
 			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-					.setStatusCode(500).end(new JsonObject().put("error", e.getMessage()).encodePrettily());
+					.setStatusCode(500)
+					.end(GenerateRsaKeyPair.encryptMsg(new JsonObject().put("error", e.getMessage()).encodePrettily()));
 		}
 	}
 
@@ -756,13 +814,14 @@ public class ChatServer extends AbstractVerticle {
 				File file = File.createTempFile("temp-file-name" + Calendar.getInstance().getTimeInMillis(),
 						"." + extension);
 				ImageIO.write(image, extension, file);
-				routingContext.response().sendFile(file.getPath());
+				routingContext.response().sendFile(GenerateRsaKeyPair.encryptFile(file).getPath());
 			} catch (IOException e) {
-				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500).end(new JsonObject().put("error", e.getMessage()).encodePrettily());
+				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentTypeImage)
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", e.getMessage()).encodePrettily()));
 			}
 		} else {
-			routingContext.request().response().sendFile(imagePath);
+			routingContext.response().sendFile(GenerateRsaKeyPair.encryptFile(new File(imagePath)).getPath());
 		}
 	}
 
@@ -781,19 +840,21 @@ public class ChatServer extends AbstractVerticle {
 						File file = File.createTempFile("temp-file-name" + Calendar.getInstance().getTimeInMillis(),
 								"." + extension);
 						ImageIO.write(image, extension, file);
-						routingContext.response().sendFile(file.getPath());
+						routingContext.response().sendFile(GenerateRsaKeyPair.encryptFile(file).getPath());
 					} catch (IOException e) {
 						routingContext.response()
 								.putHeader("content-type", StringResources.restResponseHeaderContentType)
-								.setStatusCode(500).end(new JsonObject().put("error", e.getMessage()).encodePrettily());
+								.setStatusCode(500).end(GenerateRsaKeyPair
+										.encryptMsg(new JsonObject().put("error", e.getMessage()).encodePrettily()));
 					}
 				} else {
-					routingContext.request().response().sendFile(user.getImage());
+					routingContext.response()
+							.sendFile(GenerateRsaKeyPair.encryptFile(new File(user.getImage())).getPath());
 				}
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", event.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+								new JsonObject().put("error", event.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -820,40 +881,49 @@ public class ChatServer extends AbstractVerticle {
 												routingContext.response()
 														.putHeader("content-type",
 																StringResources.restResponseHeaderContentType)
-														.end(Json.encodePrettily(handler.result()));
+														.end(GenerateRsaKeyPair
+																.encryptMsg(Json.encodePrettily(handler.result())));
 											} else {
 												routingContext.response()
 														.putHeader("content-type",
 																StringResources.restResponseHeaderContentType)
-														.setStatusCode(500)
-														.end(new JsonObject().put("error", handler.cause().getMessage())
-																.encodePrettily());
+														.setStatusCode(500).end(
+																GenerateRsaKeyPair
+																		.encryptMsg(
+																				new JsonObject()
+																						.put("error",
+																								handler.cause()
+																										.getMessage())
+																						.encodePrettily()));
 											}
 										});
 									} else {
 										routingContext.response()
 												.putHeader("content-type",
 														StringResources.restResponseHeaderContentType)
-												.setStatusCode(500).end(event.cause().getMessage());
+												.setStatusCode(500)
+												.end(GenerateRsaKeyPair.encryptMsg(event.cause().getMessage()));
 									}
 								});
 
 							} else {
 								routingContext.response()
 										.putHeader("content-type", StringResources.restResponseHeaderContentType)
-										.setStatusCode(500)
-										.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+										.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(new JsonObject()
+												.put("error", res.cause().getMessage()).encodePrettily()));
 							}
 						});
 					}
 				} catch (Exception e) {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.setStatusCode(500).end(new JsonObject().put("error", e.getMessage()).encodePrettily());
+							.setStatusCode(500).end(GenerateRsaKeyPair
+									.encryptMsg(new JsonObject().put("error", e.getMessage()).encodePrettily()));
 				}
 			});
 		} catch (Exception e) {
 			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-					.setStatusCode(500).end(new JsonObject().put("error", e.getMessage()).encodePrettily());
+					.setStatusCode(500)
+					.end(GenerateRsaKeyPair.encryptMsg(new JsonObject().put("error", e.getMessage()).encodePrettily()));
 		}
 	}
 
@@ -863,33 +933,33 @@ public class ChatServer extends AbstractVerticle {
 		getMedicalTest(userId, lastUpdateTime).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
 
 	private void saveMedicalTest(RoutingContext routingContext) {
-		MedicalTestEntity[] medicalTests = Json.decodeValue(routingContext.getBodyAsString(),
-				MedicalTestEntity[].class);
+		MedicalTestEntity[] medicalTests = Json.decodeValue(
+				GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()), MedicalTestEntity[].class);
 
 		if (medicalTests.length > 0) {
 			saveMedicalTest(Arrays.asList(medicalTests)).setHandler(res -> {
 				if (res.succeeded()) {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.end(Json.encodePrettily(res.result()));
+							.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 				} else {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.setStatusCode(500)
-							.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+							.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+									new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 				}
 			});
 		} else {
 			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-					.end(Json.encodePrettily(new ArrayList<>()));
+					.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(new ArrayList<>())));
 		}
 	}
 
@@ -916,31 +986,36 @@ public class ChatServer extends AbstractVerticle {
 										routingContext.response()
 												.putHeader("content-type",
 														StringResources.restResponseHeaderContentType)
-												.end(Json.encodePrettily(event.result().get(0)));
+												.end(GenerateRsaKeyPair
+														.encryptMsg(Json.encodePrettily(event.result().get(0))));
 									} else {
 										routingContext.response()
 												.putHeader("content-type",
 														StringResources.restResponseHeaderContentType)
-												.setStatusCode(500).end(new JsonObject()
-														.put("error", event.cause().getMessage()).encodePrettily());
+												.setStatusCode(
+														500)
+												.end(GenerateRsaKeyPair.encryptMsg(new JsonObject()
+														.put("error", event.cause().getMessage()).encodePrettily()));
 									}
 								});
 							} else {
 								routingContext.response()
 										.putHeader("content-type", StringResources.restResponseHeaderContentType)
-										.setStatusCode(500)
-										.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+										.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(new JsonObject()
+												.put("error", res.cause().getMessage()).encodePrettily()));
 							}
 						});
 					}
 				} catch (Exception e) {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.setStatusCode(500).end(new JsonObject().put("error", e.getMessage()).encodePrettily());
+							.setStatusCode(500).end(GenerateRsaKeyPair
+									.encryptMsg(new JsonObject().put("error", e.getMessage()).encodePrettily()));
 				}
 			});
 		} catch (Exception e) {
 			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-					.setStatusCode(500).end(new JsonObject().put("error", e.getMessage()).encodePrettily());
+					.setStatusCode(500)
+					.end(GenerateRsaKeyPair.encryptMsg(new JsonObject().put("error", e.getMessage()).encodePrettily()));
 		}
 	}
 
@@ -951,32 +1026,33 @@ public class ChatServer extends AbstractVerticle {
 			if (res.succeeded()) {
 				JsonArray array = new JsonArray(res.result());
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(array.encodePrettily());
+						.end(GenerateRsaKeyPair.encryptMsg(array.encodePrettily()));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
 
 	private void saveMedicine(RoutingContext routingContext) {
-		Medicine[] medicine = Json.decodeValue(routingContext.getBodyAsString(), Medicine[].class);
+		Medicine[] medicine = Json.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()),
+				Medicine[].class);
 
 		if (medicine.length > 0) {
 			saveUserMedicine(Arrays.asList(medicine)).setHandler(res -> {
 				if (res.succeeded()) {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.end(Json.encodePrettily(res.result()));
+							.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 				} else {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.setStatusCode(500)
-							.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+							.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+									new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 				}
 			});
 		} else {
 			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-					.end(Json.encodePrettily(new ArrayList<>()));
+					.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(new ArrayList<>())));
 		}
 	}
 
@@ -986,11 +1062,11 @@ public class ChatServer extends AbstractVerticle {
 			if (res.succeeded()) {
 				JsonArray array = new JsonArray(res.result());
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(array.encodePrettily());
+						.end(GenerateRsaKeyPair.encryptMsg(array.encodePrettily()));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -998,48 +1074,46 @@ public class ChatServer extends AbstractVerticle {
 	private void getPsychologyTest(RoutingContext routingContext) {
 		// Integer userId = new
 		// Integer(routingContext.request().getParam("userId"));
-		routingContext.response().putHeader("content-type", "application/json; charset=ascii")
-				.sendFile("testpsicologico.json");
+		routingContext.response().putHeader("content-type", "file").sendFile("testpsicologico.json");
 	}
 
 	private void getDrugList(RoutingContext routingContext) {
-		routingContext.response().putHeader("content-type", "application/json; charset=ascii")
-				.sendFile("drug_list.txt");
+		routingContext.response().putHeader("content-type", "file").sendFile("drug_list.txt");
 	}
 
 	private void getSurgeryInfoList(RoutingContext routingContext) {
 		// Integer userId = new
 		// Integer(routingContext.request().getParam("userId"));
-		routingContext.response().putHeader("content-type", "application/json; charset=ascii")
-				.sendFile("surgery_info_list.json");
+		routingContext.response().putHeader("content-type", "file").sendFile("surgery_info_list.json");
 	}
 
 	private void saveTestResult(RoutingContext routingContext) {
-		TestResponse testResponse = Json.decodeValue(routingContext.getBodyAsString(), TestResponse.class);
+		TestResponse testResponse = Json.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()),
+				TestResponse.class);
 		addTestResponse(testResponse).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
 
 	private void saveTestResults(RoutingContext routingContext) {
-		JsonArray jsonArray = new JsonArray(routingContext.getBodyAsString());
+		JsonArray jsonArray = new JsonArray(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()));
 		List<TestResponse> responses = new ArrayList<>();
 		jsonArray.iterator().forEachRemaining(c -> responses.add(Json.decodeValue(c.toString(), TestResponse.class)));
 		addTestResponses(responses).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -1050,11 +1124,11 @@ public class ChatServer extends AbstractVerticle {
 			if (res.succeeded()) {
 				JsonArray array = new JsonArray(res.result());
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(array.encodePrettily());
+						.end(GenerateRsaKeyPair.encryptMsg(array.encodePrettily()));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -1064,11 +1138,11 @@ public class ChatServer extends AbstractVerticle {
 		getUserById(user_id).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -1078,11 +1152,11 @@ public class ChatServer extends AbstractVerticle {
 		getDoctor(userId).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
@@ -1090,140 +1164,152 @@ public class ChatServer extends AbstractVerticle {
 	private void getHealthWeight(RoutingContext routingContext) {
 		Long userId = new Long(routingContext.request().getParam("userId"));
 		Long lastUpdateTime = new Long(routingContext.request().getParam("lastUpdateTime"));
-		getHealthWeight(userId, lastUpdateTime).setHandler(res -> {
+		Long startTime = new Long(routingContext.request().getParam("startTime"));
+		Long endTime = new Long(routingContext.request().getParam("endTime"));
+		getHealthWeight(userId, lastUpdateTime, startTime, endTime).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
 
 	private void saveHealthWeight(RoutingContext routingContext) {
-		Weight[] weights = Json.decodeValue(routingContext.getBodyAsString(), Weight[].class);
+		Weight[] weights = Json.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()),
+				Weight[].class);
 
 		if (weights.length > 0) {
 			saveHealthWeight(Arrays.asList(weights)).setHandler(res -> {
 				if (res.succeeded()) {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.end(Json.encodePrettily(res.result()));
+							.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 				} else {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.setStatusCode(500)
-							.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+							.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+									new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 				}
 			});
 		} else {
 			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-					.end(Json.encodePrettily(new ArrayList<>()));
+					.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(new ArrayList<>())));
 		}
 	}
 
 	private void getBloodPressure(RoutingContext routingContext) {
 		Long userId = new Long(routingContext.request().getParam("userId"));
 		Long lastUpdateTime = new Long(routingContext.request().getParam("lastUpdateTime"));
-		getBloodPressure(userId, lastUpdateTime).setHandler(res -> {
+		Long startTime = new Long(routingContext.request().getParam("startTime"));
+		Long endTime = new Long(routingContext.request().getParam("endTime"));
+		getBloodPressure(userId, lastUpdateTime, startTime, endTime).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
 
 	private void saveBloodPressure(RoutingContext routingContext) {
-		BloodPressure[] bloodPressure = Json.decodeValue(routingContext.getBodyAsString(), BloodPressure[].class);
+		BloodPressure[] bloodPressure = Json
+				.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()), BloodPressure[].class);
 
 		if (bloodPressure.length > 0) {
 			saveBloodPressure(Arrays.asList(bloodPressure)).setHandler(res -> {
 				if (res.succeeded()) {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.end(Json.encodePrettily(res.result()));
+							.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 				} else {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.setStatusCode(500)
-							.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+							.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+									new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 				}
 			});
 		} else {
 			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-					.end(Json.encodePrettily(new ArrayList<>()));
+					.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(new ArrayList<>())));
 		}
 	}
 
 	private void getBloodGlucose(RoutingContext routingContext) {
 		Long userId = new Long(routingContext.request().getParam("userId"));
 		Long lastUpdateTime = new Long(routingContext.request().getParam("lastUpdateTime"));
-		getBloodGlucose(userId, lastUpdateTime).setHandler(res -> {
+		Long startTime = new Long(routingContext.request().getParam("startTime"));
+		Long endTime = new Long(routingContext.request().getParam("endTime"));
+		getBloodGlucose(userId, lastUpdateTime, startTime, endTime).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
 
 	private void saveBloodGlucose(RoutingContext routingContext) {
-		BloodGlucose[] bloodGlucose = Json.decodeValue(routingContext.getBodyAsString(), BloodGlucose[].class);
+		BloodGlucose[] bloodGlucose = Json.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()),
+				BloodGlucose[].class);
 
 		if (bloodGlucose.length > 0) {
 			saveBloodGlucose(Arrays.asList(bloodGlucose)).setHandler(res -> {
 				if (res.succeeded()) {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.end(Json.encodePrettily(res.result()));
+							.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 				} else {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.setStatusCode(500)
-							.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+							.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+									new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 				}
 			});
 		} else {
 			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-					.end(Json.encodePrettily(new ArrayList<>()));
+					.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(new ArrayList<>())));
 		}
 	}
 
 	private void getHeartRate(RoutingContext routingContext) {
 		Long userId = new Long(routingContext.request().getParam("userId"));
 		Long lastUpdateTime = new Long(routingContext.request().getParam("lastUpdateTime"));
-		getHeartRate(userId, lastUpdateTime).setHandler(res -> {
+		Long startTime = new Long(routingContext.request().getParam("startTime"));
+		Long endTime = new Long(routingContext.request().getParam("endTime"));
+		getHeartRate(userId, lastUpdateTime, startTime, endTime).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
 
 	private void saveHeartRate(RoutingContext routingContext) {
-		HeartRate[] heartRate = Json.decodeValue(routingContext.getBodyAsString(), HeartRate[].class);
+		HeartRate[] heartRate = Json.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()),
+				HeartRate[].class);
 
 		if (heartRate.length > 0) {
 			saveHeartRate(Arrays.asList(heartRate)).setHandler(res -> {
 				if (res.succeeded()) {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.end(Json.encodePrettily(res.result()));
+							.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 				} else {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.setStatusCode(500)
-							.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+							.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+									new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 				}
 			});
 		} else {
 			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-					.end(Json.encodePrettily(new ArrayList<>()));
+					.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(new ArrayList<>())));
 		}
 	}
 
@@ -1233,68 +1319,72 @@ public class ChatServer extends AbstractVerticle {
 		getChallenge(userId, lastUpdateTime).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
 
 	private void saveChallenge(RoutingContext routingContext) {
-		ChallengeEntity[] challenges = Json.decodeValue(routingContext.getBodyAsString(), ChallengeEntity[].class);
+		ChallengeEntity[] challenges = Json.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()),
+				ChallengeEntity[].class);
 
 		if (challenges.length > 0) {
 			saveChallenge(Arrays.asList(challenges)).setHandler(res -> {
 				if (res.succeeded()) {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.end(Json.encodePrettily(res.result()));
+							.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 				} else {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.setStatusCode(500)
-							.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+							.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+									new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 				}
 			});
 		} else {
 			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-					.end(Json.encodePrettily(new ArrayList<>()));
+					.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(new ArrayList<>())));
 		}
 	}
 
 	private void getActivitySummary(RoutingContext routingContext) {
 		Long userId = new Long(routingContext.request().getParam("userId"));
+		Long startTime = new Long(routingContext.request().getParam("startTime"));
+		Long endTime = new Long(routingContext.request().getParam("endTime"));
 		Long lastUpdateTime = new Long(routingContext.request().getParam("lastUpdateTime"));
-		getActivitySummary(userId, lastUpdateTime).setHandler(res -> {
+		getActivitySummary(userId, lastUpdateTime, startTime, endTime).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.end(Json.encodePrettily(res.result()));
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 			} else {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-						.setStatusCode(500)
-						.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 			}
 		});
 	}
 
 	private void saveActivitySummary(RoutingContext routingContext) {
 		Long userId = new Long(routingContext.request().getParam("userId"));
-		Summary[] summaries = Json.decodeValue(routingContext.getBodyAsString(), Summary[].class);
+		Summary[] summaries = Json.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()),
+				Summary[].class);
 
 		if (summaries.length > 0) {
 			saveActivitySummary(Arrays.asList(summaries), userId).setHandler(res -> {
 				if (res.succeeded()) {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.end(Json.encodePrettily(res.result()));
+							.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 				} else {
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-							.setStatusCode(500)
-							.end(new JsonObject().put("error", res.cause().getMessage()).encodePrettily());
+							.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+									new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
 				}
 			});
 		} else {
 			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
-					.end(Json.encodePrettily(new ArrayList<>()));
+					.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(new ArrayList<>())));
 		}
 	}
 
@@ -2452,14 +2542,14 @@ public class ChatServer extends AbstractVerticle {
 		return future;
 	}
 
-	private Future<List<Weight>> getHealthWeight(Long userId, Long lastUpdateTimestamp) {
+	private Future<List<Weight>> getHealthWeight(Long userId, Long lastUpdateTimestamp, Long startTime, Long endTime) {
 		Future<List<Weight>> future = Future.future();
 		mySQLClient.getConnection(conn -> {
 			if (conn.succeeded()) {
 				try {
-					String select = "SELECT * FROM retoobesidad.weight WHERE iduser = ? AND lastUpdateTimestamp >= ? ORDER BY timestamp DESC;";
-					conn.result().queryWithParams(select, new JsonArray().add(userId).add(lastUpdateTimestamp),
-							res2 -> {
+					String select = "SELECT * FROM retoobesidad.weight WHERE iduser = ? AND lastUpdateTimestamp >= ? AND timestamp > ? AND timestamp <= ? ORDER BY timestamp DESC;";
+					conn.result().queryWithParams(select,
+							new JsonArray().add(userId).add(lastUpdateTimestamp).add(startTime).add(endTime), res2 -> {
 								conn.result().close();
 								if (res2.succeeded()) {
 									future.complete(res2.result().getRows().stream()
@@ -2559,14 +2649,15 @@ public class ChatServer extends AbstractVerticle {
 		return future;
 	}
 
-	private Future<List<BloodPressure>> getBloodPressure(Long userId, Long lastUpdateTimestamp) {
+	private Future<List<BloodPressure>> getBloodPressure(Long userId, Long lastUpdateTimestamp, Long startTime,
+			Long endTime) {
 		Future<List<BloodPressure>> future = Future.future();
 		mySQLClient.getConnection(conn -> {
 			if (conn.succeeded()) {
 				try {
-					String select = "SELECT * FROM retoobesidad.blood_pressure WHERE iduser = ? AND lastUpdateTimestamp >= ? ORDER BY timestamp DESC;";
-					conn.result().queryWithParams(select, new JsonArray().add(userId).add(lastUpdateTimestamp),
-							res2 -> {
+					String select = "SELECT * FROM retoobesidad.blood_pressure WHERE iduser = ? AND lastUpdateTimestamp >= ? AND timestamp > ? AND timestamp <= ? ORDER BY timestamp DESC;";
+					conn.result().queryWithParams(select,
+							new JsonArray().add(userId).add(lastUpdateTimestamp).add(startTime).add(endTime), res2 -> {
 								conn.result().close();
 								if (res2.succeeded()) {
 									future.complete(res2.result()
@@ -2666,14 +2757,15 @@ public class ChatServer extends AbstractVerticle {
 		return future;
 	}
 
-	private Future<List<BloodGlucose>> getBloodGlucose(Long userId, Long lastUpdateTimestamp) {
+	private Future<List<BloodGlucose>> getBloodGlucose(Long userId, Long lastUpdateTimestamp, Long startTime,
+			Long endTime) {
 		Future<List<BloodGlucose>> future = Future.future();
 		mySQLClient.getConnection(conn -> {
 			if (conn.succeeded()) {
 				try {
-					String select = "SELECT * FROM retoobesidad.blood_glucose WHERE iduser = ? AND lastUpdateTimestamp >= ? ORDER BY timestamp DESC;";
-					conn.result().queryWithParams(select, new JsonArray().add(userId).add(lastUpdateTimestamp),
-							res2 -> {
+					String select = "SELECT * FROM retoobesidad.blood_glucose WHERE iduser = ? AND lastUpdateTimestamp >= ? AND timestamp > ? AND timestamp <= ? ORDER BY timestamp DESC;";
+					conn.result().queryWithParams(select,
+							new JsonArray().add(userId).add(lastUpdateTimestamp).add(startTime).add(endTime), res2 -> {
 								conn.result().close();
 								if (res2.succeeded()) {
 									future.complete(res2.result().getRows().stream().map(
@@ -2769,14 +2861,14 @@ public class ChatServer extends AbstractVerticle {
 		return future;
 	}
 
-	private Future<List<HeartRate>> getHeartRate(Long userId, Long lastUpdateTimestamp) {
+	private Future<List<HeartRate>> getHeartRate(Long userId, Long lastUpdateTimestamp, Long startTime, Long endTime) {
 		Future<List<HeartRate>> future = Future.future();
 		mySQLClient.getConnection(conn -> {
 			if (conn.succeeded()) {
 				try {
-					String select = "SELECT * FROM retoobesidad.heart_rate WHERE iduser = ? AND lastUpdateTimestamp >= ? ORDER BY timestamp DESC;";
-					conn.result().queryWithParams(select, new JsonArray().add(userId).add(lastUpdateTimestamp),
-							res2 -> {
+					String select = "SELECT * FROM retoobesidad.heart_rate WHERE iduser = ? AND lastUpdateTimestamp >= ? AND timestamp > ? AND timestamp <= ? ORDER BY timestamp DESC;";
+					conn.result().queryWithParams(select,
+							new JsonArray().add(userId).add(lastUpdateTimestamp).add(startTime).add(endTime), res2 -> {
 								conn.result().close();
 								if (res2.succeeded()) {
 									List<HeartRate> heartRates = new ArrayList<HeartRate>();
@@ -2984,14 +3076,15 @@ public class ChatServer extends AbstractVerticle {
 		return future;
 	}
 
-	private Future<List<Summary>> getActivitySummary(Long userId, Long lastUpdateTimestamp) {
+	private Future<List<Summary>> getActivitySummary(Long userId, Long lastUpdateTimestamp, Long startTime,
+			Long endTime) {
 		Future<List<Summary>> future = Future.future();
 		mySQLClient.getConnection(conn -> {
 			if (conn.succeeded()) {
 				try {
-					String select = "SELECT * FROM retoobesidad.fitbit_summary WHERE iduser = ? AND lastUpdateTimestamp >= ? ORDER BY timestamp DESC;";
-					conn.result().queryWithParams(select, new JsonArray().add(userId).add(lastUpdateTimestamp),
-							res2 -> {
+					String select = "SELECT * FROM retoobesidad.fitbit_summary WHERE iduser = ? AND lastUpdateTimestamp >= ? AND timestamp > ? AND timestamp <= ? ORDER BY timestamp DESC;";
+					conn.result().queryWithParams(select,
+							new JsonArray().add(userId).add(lastUpdateTimestamp).add(startTime).add(endTime), res2 -> {
 								conn.result().close();
 								if (res2.succeeded()) {
 									List<Summary> result = res2.result().getRows().stream().map(summary -> {
