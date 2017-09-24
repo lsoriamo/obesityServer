@@ -53,6 +53,10 @@ public class MedicalTestEntity {
 
 	@JsonProperty("createdBy")
 	private Integer createdBy;
+	
+	@JsonProperty("userViewTimestamp")
+	private Long userViewTimestamp;
+	
 
 	@JsonCreator
 	public MedicalTestEntity(@JsonProperty("idMedicalTest") Integer idMedicalTest,
@@ -63,7 +67,7 @@ public class MedicalTestEntity {
 			@JsonProperty("timestampDone") Long timestampDone, @JsonProperty("timestampResults") Long timestampResults,
 			@JsonProperty("picturePath") String picturePath, @JsonProperty("timestampCite") Long timestampCite,
 			@JsonProperty("placeCite") String placeCite, @JsonProperty("doctorCite") String doctorCite,
-			@JsonProperty("status") Integer status, @JsonProperty("createdBy") Integer createdBy) {
+			@JsonProperty("status") Integer status, @JsonProperty("createdBy") Integer createdBy, @JsonProperty("userViewTimestamp") Long userViewTimestamp) {
 		super();
 		this.idMedicalTest = idMedicalTest;
 		this.iduser = iduser;
@@ -81,6 +85,7 @@ public class MedicalTestEntity {
 		this.doctorCite = doctorCite;
 		this.status = status;
 		this.createdBy = createdBy;
+		this.userViewTimestamp = userViewTimestamp;
 	}
 
 	public Integer getCreatedBy() {
@@ -89,6 +94,14 @@ public class MedicalTestEntity {
 
 	public void setCreatedBy(Integer createdBy) {
 		this.createdBy = createdBy;
+	}
+
+	public Long getUserViewTimestamp() {
+		return userViewTimestamp;
+	}
+
+	public void setUserViewTimestamp(Long userViewTimestamp) {
+		this.userViewTimestamp = userViewTimestamp;
 	}
 
 	public Integer getStatus() {

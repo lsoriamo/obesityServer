@@ -1,10 +1,7 @@
 package dad.us.dadVertx;
 
 import java.awt.image.BufferedImage;
-import java.awt.image.DataBufferByte;
-import java.awt.image.WritableRaster;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -16,8 +13,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.imageio.ImageIO;
-
-import com.google.firebase.internal.Base64;
 
 import dad.us.dadVertx.entities.activities.Aim;
 import dad.us.dadVertx.entities.appointment.Appointment;
@@ -39,6 +34,7 @@ import dad.us.dadVertx.entities.health.values.Summary;
 import dad.us.dadVertx.entities.health.values.Weight;
 import dad.us.dadVertx.entities.medicaltest.MedicalTestEntity;
 import dad.us.dadVertx.entities.medicine.Medicine;
+import dad.us.dadVertx.entities.medicine.MedicineTaken;
 import dad.us.dadVertx.entities.psychology.TestResponse;
 import dad.us.dadVertx.entities.user.User;
 import dad.us.dadVertx.entities.user.UserData;
@@ -51,12 +47,10 @@ import io.vertx.core.Future;
 import io.vertx.core.Handler;
 import io.vertx.core.MultiMap;
 import io.vertx.core.buffer.Buffer;
-import io.vertx.core.file.OpenOptions;
 import io.vertx.core.impl.StringEscapeUtils;
 import io.vertx.core.json.Json;
 import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
-import io.vertx.core.streams.Pump;
 import io.vertx.ext.asyncsql.AsyncSQLClient;
 import io.vertx.ext.asyncsql.MySQLClient;
 import io.vertx.ext.sql.SQLConnection;
@@ -73,15 +67,22 @@ public class ChatServer extends AbstractVerticle {
 
 	@Override
 	public void start() throws Exception {
-		
-		/* OJO: al hacer el despliegue en un servidor nuevo, leer esto para la excepción de key size:
-		 https://stackoverflow.com/questions/6481627/java-security-illegal-key-size-or-default-parameters
-		 PAra madeirasic*/
-		 JsonObject config = new JsonObject().put("host", "localhost").put("username", "root").put("password", "1d1nf0r!")
+
+		/*
+		 * OJO: al hacer el despliegue en un servidor nuevo, leer esto para la
+		 * excepción de key size:
+		 * https://stackoverflow.com/questions/6481627/java-security-illegal-key
+		 * -size-or-default-parameters PAra madeirasic
+		 */
+		// JsonObject config = new JsonObject().put("host",
+		// "localhost").put("username", "root")
+		// .put("password", "1d1nf0r!").put("database",
+		// "retoobesidad").put("port", 3306).put("maxPoolSize", 100);
+		// Para local
+
+		JsonObject config = new JsonObject().put("host", "localhost").put("username", "root").put("password", "root")
 				.put("database", "retoobesidad").put("port", 3306).put("maxPoolSize", 100);
-		 //Para local
-		/*JsonObject config = new JsonObject().put("host", "127:0:0:1").put("username", "root").put("password", "root")
-				.put("database", "retoobesidad").put("port", 3306).put("maxPoolSize", 100);*/
+
 		mySQLClient = MySQLClient.createNonShared(vertx, config);
 
 		Router router = Router.router(vertx);
@@ -117,6 +118,8 @@ public class ChatServer extends AbstractVerticle {
 		router.get("/api/obesity/appointment/:userId/:lastUpdateTime").handler(this::getUserAppointment);
 		router.post("/api/obesity/appointment").handler(this::saveUserAppointment);
 
+		router.get("/api/obesity/medicine/taken/:userId").handler(this::getMedicineTakenByUser);
+		router.post("/api/obesity/medicine/taken").handler(this::saveMedicineTaken);
 		router.post("/api/obesity/medicine/drug").handler(this::saveMedicine);
 		router.get("/api/obesity/medicine/list").handler(this::getDrugList);
 		router.get("/api/obesity/medicine/drug/:userId/:lastUpdateTime").handler(this::getMedicinesByUser);
@@ -179,11 +182,11 @@ public class ChatServer extends AbstractVerticle {
 
 		/*
 		 * vertx.setPeriodic(3000, handler -> {
-		 * FirebaseUtils.sendMessageToGroup(54, "group_message",
+		 * FirebaseUtils.sendMessageToGroup(53, "group_message",
 		 * Json.encodePrettily(new ChatMessage("Hola mundo", (int)
-		 * Calendar.getInstance().getTimeInMillis(), 54, 4L,
-		 * Calendar.getInstance().getTimeInMillis()))); })
-		 */;
+		 * Calendar.getInstance().getTimeInMillis(), 53, 3L,
+		 * Calendar.getInstance().getTimeInMillis()))); });
+		 */
 
 	}
 
@@ -701,12 +704,17 @@ public class ChatServer extends AbstractVerticle {
 	}
 
 	private void saveUserAppointment(RoutingContext routingContext) {
-		Appointment[] weights = Json.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()),
+		Appointment[] appointments = Json.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()),
 				Appointment[].class);
 
-		if (weights.length > 0) {
-			saveUserAppointment(Arrays.asList(weights)).setHandler(res -> {
+		if (appointments.length > 0) {
+			saveUserAppointment(Arrays.asList(appointments)).setHandler(res -> {
 				if (res.succeeded()) {
+					res.result().stream().filter(elem -> elem != null && !elem.getCreatedBy().equals(0) && (elem.getUserViewTimestamp() == null || elem.getUserViewTimestamp().equals(0L))).forEach(elem -> {
+						FirebaseUtils.sendMessageToUser(elem.getIduser(),
+								StringResources.createdExternalAppointment,
+								Json.encode(elem));
+					});
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
 							.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 				} else {
@@ -949,6 +957,11 @@ public class ChatServer extends AbstractVerticle {
 		if (medicalTests.length > 0) {
 			saveMedicalTest(Arrays.asList(medicalTests)).setHandler(res -> {
 				if (res.succeeded()) {
+					res.result().stream().filter(elem -> elem != null && !elem.getCreatedBy().equals(0) && (elem.getUserViewTimestamp() == null || elem.getUserViewTimestamp().equals(0L))).forEach(elem -> {
+						FirebaseUtils.sendMessageToUser(elem.getIduser(),
+								StringResources.createdExternalMedicalTest,
+								Json.encode(elem));
+					});
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
 							.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 				} else {
@@ -1035,6 +1048,42 @@ public class ChatServer extends AbstractVerticle {
 		});
 	}
 
+	private void getMedicineTakenByUser(RoutingContext routingContext) {
+		Long userId = new Long(routingContext.request().getParam("userId"));
+		getUserMedicineTaken(userId).setHandler(res -> {
+			if (res.succeeded()) {
+				JsonArray array = new JsonArray(res.result());
+				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
+						.end(GenerateRsaKeyPair.encryptMsg(array.encodePrettily()));
+			} else {
+				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
+			}
+		});
+	}
+
+	private void saveMedicineTaken(RoutingContext routingContext) {
+		MedicineTaken[] medicineTaken = Json
+				.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()), MedicineTaken[].class);
+
+		if (medicineTaken.length > 0) {
+			saveUserMedicineTaken(Arrays.asList(medicineTaken)).setHandler(res -> {
+				if (res.succeeded()) {
+					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
+							.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
+				} else {
+					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
+							.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+									new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
+				}
+			});
+		} else {
+			routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
+					.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(new ArrayList<>())));
+		}
+	}
+
 	private void saveMedicine(RoutingContext routingContext) {
 		Medicine[] medicine = Json.decodeValue(GenerateRsaKeyPair.decryptMsg(routingContext.getBodyAsString()),
 				Medicine[].class);
@@ -1042,6 +1091,11 @@ public class ChatServer extends AbstractVerticle {
 		if (medicine.length > 0) {
 			saveUserMedicine(Arrays.asList(medicine)).setHandler(res -> {
 				if (res.succeeded()) {
+					res.result().stream().filter(elem -> elem != null && !elem.getCreatedBy().equals(0) && (elem.getUserViewTimestamp() == null || elem.getUserViewTimestamp().equals(0L))).forEach(elem -> {
+						FirebaseUtils.sendMessageToUser(elem.getIduser(),
+								StringResources.createdExternalMedicine,
+								Json.encode(elem));
+					});
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
 							.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 				} else {
@@ -1975,8 +2029,8 @@ public class ChatServer extends AbstractVerticle {
 								Appointment appointment = appointments.get(idx);
 								conn.result().updateWithParams(
 										"INSERT INTO retoobesidad.appointments (idappointment, timestamp,doctor,description,place,things,"
-												+ "iduser,type,status,lastUpdateTimestamp) "
-												+ "VALUES (?,?,?,?,?,?,?,?,?,?) " + "ON DUPLICATE KEY UPDATE "
+												+ "iduser,type,status,createdBy,userViewTimestamp,lastUpdateTimestamp) "
+												+ "VALUES (?,?,?,?,?,?,?,?,?,?,?,?) " + "ON DUPLICATE KEY UPDATE "
 												+ "timestamp = IF (lastUpdateTimestamp < ?,?,timestamp),"
 												+ "doctor = IF (lastUpdateTimestamp < ?,?, doctor),"
 												+ "description = IF (lastUpdateTimestamp < ?,?, description),"
@@ -1985,12 +2039,15 @@ public class ChatServer extends AbstractVerticle {
 												+ "iduser = IF (lastUpdateTimestamp < ?,?, iduser),"
 												+ "type = IF (lastUpdateTimestamp < ?,?, type),"
 												+ "status = IF (lastUpdateTimestamp < ?,?, status),"
+												+ "createdBy = IF (lastUpdateTimestamp < ?,?, createdBy),"
+												+ "userViewTimestamp = IF (lastUpdateTimestamp < ?,?, userViewTimestamp),"
 												+ "lastUpdateTimestamp = IF (lastUpdateTimestamp < ?,?,lastUpdateTimestamp);",
 										new JsonArray().add(appointment.getIdAppointment())
 												.add(appointment.getTimestamp()).add(appointment.getDoctor())
 												.add(appointment.getDescription()).add(appointment.getPlace())
 												.add(appointment.getThings()).add(appointment.getIduser())
 												.add(appointment.getType()).add(appointment.getStatus())
+												.add(appointment.getCreatedBy()).add(appointment.getUserViewTimestamp())
 												.add(appointment.getLastUpdateTimestamp())
 												.add(appointment.getLastUpdateTimestamp())
 												.add(appointment.getTimestamp())
@@ -2003,12 +2060,17 @@ public class ChatServer extends AbstractVerticle {
 												.add(appointment.getLastUpdateTimestamp()).add(appointment.getType())
 												.add(appointment.getLastUpdateTimestamp()).add(appointment.getStatus())
 												.add(appointment.getLastUpdateTimestamp())
+												.add(appointment.getCreatedBy())
+												.add(appointment.getLastUpdateTimestamp())
+												.add(appointment.getUserViewTimestamp())
+												.add(appointment.getLastUpdateTimestamp())
 												.add(appointment.getLastUpdateTimestamp()),
 										res2 -> {
 											if (res2.succeeded() && res2.result().getKeys().size() > 0) {
-												if (res2.result().getKeys().getInteger(0) > 0)
+												if (res2.result().getKeys().getInteger(0) > 0) {
 													appointments.get(idx)
 															.setIdAppointment(res2.result().getKeys().getInteger(0));
+												}
 												futures.get(idx).complete();
 											} else {
 												futures.get(idx).fail(res2.cause());
@@ -2188,8 +2250,8 @@ public class ChatServer extends AbstractVerticle {
 								Medicine medicine = medicines.get(idx);
 								conn.result().updateWithParams(
 										"INSERT INTO retoobesidad.medicine (iduser,medicine,observations,"
-												+ "begin_timestamp,end_timestamp,method,dosage,days,idmedicine,lastUpdateTimestamp,status) "
-												+ "VALUES (?,?,?,?,?,?,?,?,?,?,?) " + "ON DUPLICATE KEY UPDATE "
+												+ "begin_timestamp,end_timestamp,method,dosage,days,idmedicine,lastUpdateTimestamp,status,createdBy,userViewTimestamp) "
+												+ "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) " + "ON DUPLICATE KEY UPDATE "
 												+ "iduser = IF (lastUpdateTimestamp < ?,?,iduser),"
 												+ "medicine = IF (lastUpdateTimestamp < ?,?, medicine),"
 												+ "observations = IF (lastUpdateTimestamp < ?,?, observations),"
@@ -2199,22 +2261,29 @@ public class ChatServer extends AbstractVerticle {
 												+ "dosage = IF (lastUpdateTimestamp < ?,?, dosage),"
 												+ "days = IF (lastUpdateTimestamp < ?,?, days),"
 												+ "status = IF (lastUpdateTimestamp < ?,?, status),"
+												+ "createdBy = IF (lastUpdateTimestamp < ?,?, createdBy),"
+												+ "userViewTimestamp = IF (lastUpdateTimestamp < ?,?, userViewTimestamp),"
 												+ "lastUpdateTimestamp = IF (lastUpdateTimestamp < ?,?, lastUpdateTimestamp);",
 										new JsonArray().add(medicine.getIduser()).add(medicine.getMedicine())
 												.add(medicine.getObservations()).add(medicine.getBeginTimestamp())
 												.add(medicine.getEndTimestamp()).add(medicine.getMethod())
 												.add(medicine.getDosage()).add(medicine.getDays())
 												.add(medicine.getIdmedicine()).add(medicine.getLastUpdateTimestamp())
-												.add(medicine.getStatus()).add(medicine.getLastUpdateTimestamp())
-												.add(medicine.getIduser()).add(medicine.getLastUpdateTimestamp())
-												.add(medicine.getMedicine()).add(medicine.getLastUpdateTimestamp())
-												.add(medicine.getObservations()).add(medicine.getLastUpdateTimestamp())
+												.add(medicine.getStatus()).add(medicine.getCreatedBy())
+												.add(medicine.getUserViewTimestamp())
+												.add(medicine.getLastUpdateTimestamp()).add(medicine.getIduser())
+												.add(medicine.getLastUpdateTimestamp()).add(medicine.getMedicine())
+												.add(medicine.getLastUpdateTimestamp()).add(medicine.getObservations())
+												.add(medicine.getLastUpdateTimestamp())
 												.add(medicine.getBeginTimestamp())
 												.add(medicine.getLastUpdateTimestamp()).add(medicine.getEndTimestamp())
 												.add(medicine.getLastUpdateTimestamp()).add(medicine.getMethod())
 												.add(medicine.getLastUpdateTimestamp()).add(medicine.getDosage())
 												.add(medicine.getLastUpdateTimestamp()).add(medicine.getDays())
 												.add(medicine.getLastUpdateTimestamp()).add(medicine.getStatus())
+												.add(medicine.getLastUpdateTimestamp()).add(medicine.getCreatedBy())
+												.add(medicine.getLastUpdateTimestamp())
+												.add(medicine.getUserViewTimestamp())
 												.add(medicine.getLastUpdateTimestamp())
 												.add(medicine.getLastUpdateTimestamp()),
 										res2 -> {
@@ -2222,6 +2291,92 @@ public class ChatServer extends AbstractVerticle {
 												if (res2.result().getKeys().getInteger(0) > 0)
 													medicines.get(idx)
 															.setIdmedicine(res2.result().getKeys().getInteger(0));
+												futures.get(idx).complete();
+											} else {
+												futures.get(idx).fail(res2.cause());
+											}
+											handle(idx + 1);
+										});
+							}
+						}
+					}.handle(0);
+
+					CompositeFuture.all(futures).setHandler(handler -> {
+						conn.result().close();
+						if (handler.succeeded()) {
+							future.complete(medicines);
+						} else {
+							future.fail(handler.cause() != null ? handler.cause().getMessage() : "");
+						}
+					});
+				} catch (Exception e) {
+					future.fail(e.getCause() != null ? e.getCause().getMessage() : "");
+					conn.result().close();
+				}
+			} else {
+				future.fail(conn.cause() != null ? conn.cause().getMessage() : "");
+				conn.result().close();
+			}
+		});
+		return future;
+	}
+
+	private Future<List<MedicineTaken>> getUserMedicineTaken(Long userId) {
+		Future<List<MedicineTaken>> future = Future.future();
+		mySQLClient.getConnection(conn -> {
+			if (conn.succeeded()) {
+				try {
+					String select = "SELECT * FROM retoobesidad.medicine_taken WHERE iduser = ? ORDER BY timestamp DESC;";
+					conn.result().queryWithParams(select, new JsonArray().add(userId), res2 -> {
+						conn.result().close();
+						if (res2.succeeded()) {
+							future.complete(res2.result().getRows().stream()
+									.map(medicine -> Json.decodeValue(medicine.encode(), MedicineTaken.class))
+									.collect(Collectors.toList()));
+						} else {
+							future.fail(res2.cause() != null ? res2.cause().getMessage() : "");
+						}
+					});
+				} catch (Exception e) {
+					future.fail(e.getCause() != null ? e.getCause().getMessage() : "");
+					conn.result().close();
+				}
+			} else {
+				future.fail(conn.cause() != null ? conn.cause().getMessage() : "");
+			}
+		});
+
+		return future;
+	}
+
+	private Future<List<MedicineTaken>> saveUserMedicineTaken(List<MedicineTaken> medicines) {
+		List<Future> futures = new ArrayList<>();
+		for (int i = 0; i < medicines.size(); i++) {
+			futures.add(Future.future());
+		}
+		Future<List<MedicineTaken>> future = Future.future();
+
+		mySQLClient.getConnection(conn -> {
+			if (conn.succeeded()) {
+				try {
+					new Handler<Integer>() {
+						@Override
+						public void handle(Integer idx) {
+							if (idx < medicines.size()) {
+								MedicineTaken medicine = medicines.get(idx);
+								conn.result().updateWithParams(
+										"INSERT INTO retoobesidad.medicine_taken (idmedicine_taken,idUser,timestamp,medicineId) "
+												+ "VALUES (?,?,?,?) " + "ON DUPLICATE KEY UPDATE " + "idUser = ? ,"
+												+ "timestamp = ?," + "medicineId = ?;",
+										new JsonArray().add(medicine.getIdmedicine_taken()).add(medicine.getIdUser())
+												.add(medicine.getTimestamp()).add(medicine.getMedicineId())
+												.add(medicine.getIdUser()).add(medicine.getTimestamp())
+												.add(medicine.getMedicineId()),
+										res2 -> {
+											if (res2.succeeded() && res2.result().getKeys().size() > 0) {
+												if (res2.result().getKeys().getInteger(0) > 0)
+													medicines.get(idx)
+															.setIdmedicine_taken(res2.result().getKeys().getInteger(0));
 												futures.get(idx).complete();
 											} else {
 												futures.get(idx).fail(res2.cause());
@@ -3272,8 +3427,8 @@ public class ChatServer extends AbstractVerticle {
 								conn.result().updateWithParams(
 										"INSERT INTO retoobesidad.medicaltest (idMedicalTest,iduser,prescriber,"
 												+ "prescriberComment,lastUpdateTimestamp,name,description,timestamp,"
-												+ "timestampDone,timestampResults,picturePath,timestampCite,placeCite,doctorCite, status, createdBy) "
-												+ "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
+												+ "timestampDone,timestampResults,picturePath,timestampCite,placeCite,doctorCite, status, createdBy, userViewTimestamp) "
+												+ "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?) "
 												+ "ON DUPLICATE KEY UPDATE "
 												+ "iduser = IF (lastUpdateTimestamp < ?,?,iduser),"
 												+ "prescriber = IF (lastUpdateTimestamp < ?,?, prescriber),"
@@ -3289,6 +3444,7 @@ public class ChatServer extends AbstractVerticle {
 												+ "doctorCite = IF (lastUpdateTimestamp < ?,?, doctorCite),"
 												+ "status = IF (lastUpdateTimestamp < ?,?, status),"
 												+ "createdBy = IF (lastUpdateTimestamp < ?,?, createdBy),"
+												+ "userViewTimestamp = IF (lastUpdateTimestamp < ?,?, userViewTimestamp),"
 												+ "lastUpdateTimestamp = IF (lastUpdateTimestamp < ?,?,lastUpdateTimestamp);",
 										new JsonArray().add(test.getIdMedicalTest()).add(test.getIduser())
 												.add(test.getPrescriber()).add(test.getPrescriberComment())
@@ -3298,26 +3454,29 @@ public class ChatServer extends AbstractVerticle {
 												.add(test.getPicturePath()).add(test.getTimestampCite())
 												.add(test.getPlaceCite()).add(test.getDoctorCite())
 												.add(test.getStatus()).add(test.getCreatedBy())
-												.add(test.getLastUpdateTimestamp()).add(test.getIduser())
-												.add(test.getLastUpdateTimestamp()).add(test.getPrescriber())
-												.add(test.getLastUpdateTimestamp()).add(test.getPrescriberComment())
-												.add(test.getLastUpdateTimestamp()).add(test.getName())
-												.add(test.getLastUpdateTimestamp()).add(test.getDescription())
-												.add(test.getLastUpdateTimestamp()).add(test.getTimestamp())
-												.add(test.getLastUpdateTimestamp()).add(test.getTimestampDone())
-												.add(test.getLastUpdateTimestamp()).add(test.getTimestampResults())
-												.add(test.getLastUpdateTimestamp()).add(test.getPicturePath())
-												.add(test.getLastUpdateTimestamp()).add(test.getTimestampCite())
-												.add(test.getLastUpdateTimestamp()).add(test.getPlaceCite())
-												.add(test.getLastUpdateTimestamp()).add(test.getDoctorCite())
-												.add(test.getLastUpdateTimestamp()).add(test.getStatus())
-												.add(test.getLastUpdateTimestamp()).add(test.getCreatedBy())
-												.add(test.getLastUpdateTimestamp()).add(test.getLastUpdateTimestamp()),
+												.add(test.getUserViewTimestamp()).add(test.getLastUpdateTimestamp())
+												.add(test.getIduser()).add(test.getLastUpdateTimestamp())
+												.add(test.getPrescriber()).add(test.getLastUpdateTimestamp())
+												.add(test.getPrescriberComment()).add(test.getLastUpdateTimestamp())
+												.add(test.getName()).add(test.getLastUpdateTimestamp())
+												.add(test.getDescription()).add(test.getLastUpdateTimestamp())
+												.add(test.getTimestamp()).add(test.getLastUpdateTimestamp())
+												.add(test.getTimestampDone()).add(test.getLastUpdateTimestamp())
+												.add(test.getTimestampResults()).add(test.getLastUpdateTimestamp())
+												.add(test.getPicturePath()).add(test.getLastUpdateTimestamp())
+												.add(test.getTimestampCite()).add(test.getLastUpdateTimestamp())
+												.add(test.getPlaceCite()).add(test.getLastUpdateTimestamp())
+												.add(test.getDoctorCite()).add(test.getLastUpdateTimestamp())
+												.add(test.getStatus()).add(test.getLastUpdateTimestamp())
+												.add(test.getCreatedBy()).add(test.getLastUpdateTimestamp())
+												.add(test.getUserViewTimestamp()).add(test.getLastUpdateTimestamp())
+												.add(test.getLastUpdateTimestamp()),
 										res2 -> {
 											if (res2.succeeded() && res2.result().getKeys().size() > 0) {
-												if (res2.result().getKeys().getInteger(0) > 0)
+												if (res2.result().getKeys().getInteger(0) > 0) {
 													medicalTest.get(idx)
 															.setIdMedicalTest(res2.result().getKeys().getInteger(0));
+												}
 												futures.get(idx).complete();
 											} else {
 												futures.get(idx)

@@ -31,6 +31,10 @@ public class StringResources {
 	public static String restResponseHeaderContentType = "application/json; charset=utf-8";
 	public static String restResponseHeaderContentTypeImage = "image";
 	
+	public static String createdExternalMedicine = "medicine_external";
+	public static String createdExternalMedicalTest = "medical_test_external";
+	public static String createdExternalAppointment = "appointment_external";
+	
 	public static Float defaultAimActiveMinutes = 50f;
 	public static Float defaultAimCaloriesOut = 1250f;
 	public static Float defaultAimDistance = 0.5f;

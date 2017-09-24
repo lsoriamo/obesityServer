@@ -1,6 +1,8 @@
 package dad.us.dadVertx.entities.firebase;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -76,6 +78,15 @@ public class FirebaseUtils {
 		});
 	}
 
+	public static void sendMessageToUser(Long userId, String messageTitle, String messageBody) {
+		ChatServer.getUserFirebaseToken(userId).setHandler(handler -> {
+			if (handler.succeeded() && handler.result() != null) {
+				FirebaseUtils.sendMessage(Arrays.asList(handler.result().getFirebase_token()), messageTitle,
+						messageBody);
+			}
+		});
+	}
+
 	public static Future<Boolean> sendMessageToGroup(Integer groupId, List<User> users, Long userException,
 			ChatMessage message) {
 		Future<Boolean> future = Future.future();
@@ -97,7 +108,7 @@ public class FirebaseUtils {
 						if (handler.succeeded() && handler.result() != null) {
 							tokens.add(handler.result().getFirebase_token());
 							fut.complete();
-						}else{
+						} else {
 							fut.fail("");
 						}
 						self.handle(idx + 1);
