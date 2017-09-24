@@ -23,6 +23,7 @@ import dad.us.dadVertx.entities.chat.ChatMessageState;
 import dad.us.dadVertx.entities.chat.ChatMessageState.MessageState;
 import dad.us.dadVertx.entities.consent.Consent;
 import dad.us.dadVertx.entities.doctor.Doctor;
+import dad.us.dadVertx.entities.doctor.DoctorPatient;
 import dad.us.dadVertx.entities.firebase.FirebaseEntity;
 import dad.us.dadVertx.entities.firebase.FirebaseUtils;
 import dad.us.dadVertx.entities.health.values.BloodGlucose;
@@ -53,6 +54,11 @@ import io.vertx.core.json.JsonArray;
 import io.vertx.core.json.JsonObject;
 import io.vertx.ext.asyncsql.AsyncSQLClient;
 import io.vertx.ext.asyncsql.MySQLClient;
+import io.vertx.ext.mail.LoginOption;
+import io.vertx.ext.mail.MailClient;
+import io.vertx.ext.mail.MailConfig;
+import io.vertx.ext.mail.MailMessage;
+import io.vertx.ext.mail.StartTLSOptions;
 import io.vertx.ext.sql.SQLConnection;
 import io.vertx.ext.web.FileUpload;
 import io.vertx.ext.web.Router;
@@ -64,6 +70,8 @@ public class ChatServer extends AbstractVerticle {
 
 	private static AsyncSQLClient mySQLClient;
 	private static WatsonQuestionAnswer watsonQuestions;
+	private static MailClient mailClient;
+	private static String serverAddress = "http://172.29.195.55:8080";
 
 	@Override
 	public void start() throws Exception {
@@ -79,12 +87,28 @@ public class ChatServer extends AbstractVerticle {
 		// .put("password", "1d1nf0r!").put("database",
 		// "retoobesidad").put("port", 3306).put("maxPoolSize", 100);
 		// Para local
-
+		
 		JsonObject config = new JsonObject().put("host", "localhost").put("username", "root").put("password", "root")
 				.put("database", "retoobesidad").put("port", 3306).put("maxPoolSize", 100);
 
 		mySQLClient = MySQLClient.createNonShared(vertx, config);
+		//TODO: hola
+		MailConfig configMail = new MailConfig();
+		configMail.setPort(25);
+		configMail.setStarttls(StartTLSOptions.REQUIRED);
+		configMail.setHostname("smtp.preobar.com");
+		configMail.setUsername("lsoria@preobar.com");
+		configMail.setPassword("Luismisoria_1985");
+		
 
+		configMail.setLogin(LoginOption.REQUIRED);
+		configMail.setAuthMethods("LOGIN");
+		//configMail.setDisableEsmtp(true);
+		//configMail.setSsl(true);
+		configMail.setTrustAll(true);
+		//configMail.setOwnHostname("smtp.preobar.com");
+		
+		mailClient = MailClient.createShared(vertx, configMail);
 		Router router = Router.router(vertx);
 
 		router.route("/api/obesity/*").handler(BodyHandler.create());
@@ -140,8 +164,6 @@ public class ChatServer extends AbstractVerticle {
 		router.post("/api/obesity/messages/send").handler(this::postMessage);
 		router.get("/api/obesity/messages/last/:groupId").handler(this::getGroupLastMessage);
 		router.get("/api/obesity/messages/unread/:userId/:groupId").handler(this::getUnreadMessages);
-		// TODO: método para los mensajes no recibidos de los miembros de un
-		// grupo
 
 		router.get("/api/obesity/messages/:groupId/:timestamp").handler(this::getGroupMessagesFromDate);
 		router.get("/api/obesity/messages/:groupId/:timestamp/reverse").handler(this::getGroupMessagesUntilDate);
@@ -175,6 +197,8 @@ public class ChatServer extends AbstractVerticle {
 		router.post("/api/obesity/challenge").handler(this::saveChallenge);
 
 		router.get("/api/obesity/doctor/:userId").handler(this::getDoctor);
+		router.get("/api/obesity/doctor/request/:idDoctor/:idPatient").handler(this::requestDoctorPatient);
+		router.get("/api/obesity/doctor/validate/:idDoctor/:idPatient").handler(this::vaildateDoctorPatient);
 
 		vertx.createHttpServer().requestHandler(router::accept).listen(8080);
 
@@ -710,11 +734,13 @@ public class ChatServer extends AbstractVerticle {
 		if (appointments.length > 0) {
 			saveUserAppointment(Arrays.asList(appointments)).setHandler(res -> {
 				if (res.succeeded()) {
-					res.result().stream().filter(elem -> elem != null && !elem.getCreatedBy().equals(0) && (elem.getUserViewTimestamp() == null || elem.getUserViewTimestamp().equals(0L))).forEach(elem -> {
-						FirebaseUtils.sendMessageToUser(elem.getIduser(),
-								StringResources.createdExternalAppointment,
-								Json.encode(elem));
-					});
+					res.result().stream()
+							.filter(elem -> elem != null && !elem.getCreatedBy().equals(0)
+									&& (elem.getUserViewTimestamp() == null || elem.getUserViewTimestamp().equals(0L)))
+							.forEach(elem -> {
+								FirebaseUtils.sendMessageToUser(elem.getIduser(),
+										StringResources.createdExternalAppointment, Json.encode(elem));
+							});
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
 							.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 				} else {
@@ -957,11 +983,13 @@ public class ChatServer extends AbstractVerticle {
 		if (medicalTests.length > 0) {
 			saveMedicalTest(Arrays.asList(medicalTests)).setHandler(res -> {
 				if (res.succeeded()) {
-					res.result().stream().filter(elem -> elem != null && !elem.getCreatedBy().equals(0) && (elem.getUserViewTimestamp() == null || elem.getUserViewTimestamp().equals(0L))).forEach(elem -> {
-						FirebaseUtils.sendMessageToUser(elem.getIduser(),
-								StringResources.createdExternalMedicalTest,
-								Json.encode(elem));
-					});
+					res.result().stream()
+							.filter(elem -> elem != null && !elem.getCreatedBy().equals(0)
+									&& (elem.getUserViewTimestamp() == null || elem.getUserViewTimestamp().equals(0L)))
+							.forEach(elem -> {
+								FirebaseUtils.sendMessageToUser(elem.getIduser(),
+										StringResources.createdExternalMedicalTest, Json.encode(elem));
+							});
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
 							.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 				} else {
@@ -1091,11 +1119,13 @@ public class ChatServer extends AbstractVerticle {
 		if (medicine.length > 0) {
 			saveUserMedicine(Arrays.asList(medicine)).setHandler(res -> {
 				if (res.succeeded()) {
-					res.result().stream().filter(elem -> elem != null && !elem.getCreatedBy().equals(0) && (elem.getUserViewTimestamp() == null || elem.getUserViewTimestamp().equals(0L))).forEach(elem -> {
-						FirebaseUtils.sendMessageToUser(elem.getIduser(),
-								StringResources.createdExternalMedicine,
-								Json.encode(elem));
-					});
+					res.result().stream()
+							.filter(elem -> elem != null && !elem.getCreatedBy().equals(0)
+									&& (elem.getUserViewTimestamp() == null || elem.getUserViewTimestamp().equals(0L)))
+							.forEach(elem -> {
+								FirebaseUtils.sendMessageToUser(elem.getIduser(),
+										StringResources.createdExternalMedicine, Json.encode(elem));
+							});
 					routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
 							.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
 				} else {
@@ -1203,7 +1233,51 @@ public class ChatServer extends AbstractVerticle {
 
 	private void getDoctor(RoutingContext routingContext) {
 		Long userId = new Long(routingContext.request().getParam("userId"));
-		getDoctor(userId).setHandler(res -> {
+		getUserDoctors(userId).setHandler(res -> {
+			if (res.succeeded()) {
+				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
+						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
+			} else {
+				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
+						.setStatusCode(500).end(GenerateRsaKeyPair
+								.encryptMsg(new JsonObject().put("error", res.cause().getMessage()).encodePrettily()));
+			}
+		});
+	}
+
+	private void requestDoctorPatient(RoutingContext routingContext) {
+		Long idDoctor = new Long(routingContext.request().getParam("idDoctor"));
+		Long idPatient = new Long(routingContext.request().getParam("idPatient"));
+		getUser(idPatient).setHandler(patient -> {
+			getDoctor(idDoctor).setHandler(doctor -> {
+				MailMessage message = new MailMessage();
+				message.setFrom("lsoria@preobar.com");
+				message.setTo(doctor.result().get(0).getEmail());
+				message.setCc("lsoria@preobar.com");
+				message.setSubject(StringResources.validationNewPatientSubject);
+				String validationLink = serverAddress + "/api/obesity/doctor/validate/" + idDoctor + "/" + idPatient;
+				message.setHtml(String.format(StringResources.validationNewPatientBody, patient.result().getName(), patient.result().getSurname(), validationLink));
+				mailClient.sendMail(message, result -> {
+					if (result.succeeded()) {
+						routingContext.response()
+								.putHeader("content-type", StringResources.restResponseHeaderContentType)
+								.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(result.result())));
+					} else {
+						routingContext.response()
+								.putHeader("content-type", StringResources.restResponseHeaderContentType)
+								.setStatusCode(500).end(GenerateRsaKeyPair.encryptMsg(
+										new JsonObject().put("error", result.cause().getMessage()).encodePrettily()));
+					}
+				});
+			});
+		});
+
+	}
+
+	private void vaildateDoctorPatient(RoutingContext routingContext) {
+		Long idDoctor = new Long(routingContext.request().getParam("idDoctor"));
+		Long idPatient = new Long(routingContext.request().getParam("idPatient"));
+		validateDoctorPatient(idDoctor, idPatient).setHandler(res -> {
 			if (res.succeeded()) {
 				routingContext.response().putHeader("content-type", StringResources.restResponseHeaderContentType)
 						.end(GenerateRsaKeyPair.encryptMsg(Json.encodePrettily(res.result())));
@@ -3508,13 +3582,13 @@ public class ChatServer extends AbstractVerticle {
 		return future;
 	}
 
-	private Future<List<Doctor>> getDoctor(Long userId) {
+	private Future<List<Doctor>> getUserDoctors(Long userId) {
 		Future<List<Doctor>> future = Future.future();
 		mySQLClient.getConnection(conn -> {
 			if (conn.succeeded()) {
 				try {
-					String select = "SELECT * FROM retoobesidad.doctor ORDER BY surname DESC;";
-					conn.result().queryWithParams(select, new JsonArray(), res2 -> {
+					String select = "SELECT doctor.* FROM retoobesidad.doctor AS doctor INNER JOIN retoobesidad.doctorpatient AS rel WHERE rel.idPatient = ? AND doctor.idDoctor=rel.idDoctor ORDER BY doctor.surname ASC;";
+					conn.result().queryWithParams(select, new JsonArray().add(userId), res2 -> {
 						conn.result().close();
 						if (res2.succeeded()) {
 							future.complete(res2.result().getRows().stream()
@@ -3524,6 +3598,67 @@ public class ChatServer extends AbstractVerticle {
 							future.fail(res2.cause() != null ? res2.cause().getMessage() : "");
 						}
 					});
+				} catch (Exception e) {
+					future.fail(e.getCause() != null ? e.getCause().getMessage() : "");
+					conn.result().close();
+				}
+			} else {
+				future.fail(conn.cause() != null ? conn.cause().getMessage() : "");
+			}
+		});
+
+		return future;
+	}
+	
+	private Future<List<Doctor>> getDoctor(Long doctorId) {
+		Future<List<Doctor>> future = Future.future();
+		mySQLClient.getConnection(conn -> {
+			if (conn.succeeded()) {
+				try {
+					String select = "SELECT * FROM retoobesidad.doctor WHERE idDoctor=?;";
+					conn.result().queryWithParams(select, new JsonArray().add(doctorId), res2 -> {
+						conn.result().close();
+						if (res2.succeeded()) {
+							future.complete(res2.result().getRows().stream()
+									.map(doctor -> Json.decodeValue(doctor.encode(), Doctor.class))
+									.collect(Collectors.toList()));
+						} else {
+							future.fail(res2.cause() != null ? res2.cause().getMessage() : "");
+						}
+					});
+				} catch (Exception e) {
+					future.fail(e.getCause() != null ? e.getCause().getMessage() : "");
+					conn.result().close();
+				}
+			} else {
+				future.fail(conn.cause() != null ? conn.cause().getMessage() : "");
+			}
+		});
+
+		return future;
+	}
+
+	private Future<List<DoctorPatient>> validateDoctorPatient(Long idDoctor, Long idPatient) {
+		Future<List<DoctorPatient>> future = Future.future();
+		mySQLClient.getConnection(conn -> {
+			if (conn.succeeded()) {
+				try {
+					String select = "UPDATE retoobesidad.doctorpatient SET status = ?, validationTimestamp = ? "
+							+ "WHERE idDoctor = ? AND idPatient = ?;";
+					conn.result()
+							.queryWithParams(select, new JsonArray().add(1)
+									.add(Calendar.getInstance().getTimeInMillis()).add(idDoctor).add(idPatient),
+									res2 -> {
+										conn.result().close();
+										if (res2.succeeded()) {
+											future.complete(res2.result().getRows()
+													.stream().map(doctorPatient -> Json
+															.decodeValue(doctorPatient.encode(), DoctorPatient.class))
+													.collect(Collectors.toList()));
+										} else {
+											future.fail(res2.cause() != null ? res2.cause().getMessage() : "");
+										}
+									});
 				} catch (Exception e) {
 					future.fail(e.getCause() != null ? e.getCause().getMessage() : "");
 					conn.result().close();

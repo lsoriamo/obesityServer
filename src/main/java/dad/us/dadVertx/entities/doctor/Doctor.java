@@ -19,13 +19,26 @@ public class Doctor {
 	@JsonProperty("specialty")
 	private Integer specialty;
 
+	@JsonProperty("email")
+	private String email;
+
 	@JsonCreator
 	public Doctor(@JsonProperty("idDoctor") Long idDoctor, @JsonProperty("name") String name,
-			@JsonProperty("surname") String surname, @JsonProperty("specialty") Integer specialty) {
+			@JsonProperty("surname") String surname, @JsonProperty("specialty") Integer specialty,
+			@JsonProperty("email") String email) {
 		this.idDoctor = idDoctor;
 		this.name = name;
 		this.surname = surname;
 		this.specialty = specialty;
+		this.email = email;
+	}
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
 	}
 
 	public Long getIdDoctor() {
@@ -108,7 +121,5 @@ public class Doctor {
 			return false;
 		return true;
 	}
-	
-	
 
 }

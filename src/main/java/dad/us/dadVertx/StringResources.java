@@ -40,4 +40,7 @@ public class StringResources {
 	public static Float defaultAimDistance = 0.5f;
 	public static Float defaultAimSteps = 3000f;
 	
+	public static String validationNewPatientSubject = "[Preobar] Tienes un paciente esperando la aceptación";
+	public static String validationNewPatientBody = "El paciente %1$s %2$s está esperando a que valides sus datos. Pulsa el siguiente enlace para aceptar su incorporación en Preobar asociándolo a tu cuota de pacientes. <a href=\"%3$s\">Aceptar este paciente</a>";
+	
 }
